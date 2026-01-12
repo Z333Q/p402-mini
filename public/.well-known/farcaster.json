@@ -1,0 +1,26 @@
+{
+  "accountAssociation": {
+    "header": "base-account-association-v1",
+    "payload": {
+      "domain": "mini.p402.io"
+    }
+  },
+  "frame": {
+    "version": "next",
+    "name": "P402",
+    "iconUrl": "https://mini.p402.io/icon.png",
+    "homeUrl": "https://mini.p402.io",
+    "imageUrl": "https://mini.p402.io/og-image.png",
+    "buttonTitle": "Open P402",
+    "splashImageUrl": "https://mini.p402.io/splash.png",
+    "splashBackgroundColor": "#000000"
+  },
+  "primaryCategory": "productivity",
+  "tags": [
+    "ai",
+    "assistant",
+    "productivity",
+    "base"
+  ],
+  "appId": "6964779bb8395f034ac225a7"
+}

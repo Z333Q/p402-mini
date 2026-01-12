@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Neo-Brutalist Design System */
+
+:root {
+  --p402-primary: #B6FF2E;
+  --p402-primary-hover: #A0E626;
+  --p402-success: #22C55E;
+  --p402-error: #EF4444;
+  --p402-warning: #F59E0B;
+  --p402-info: #22D3EE;
+}
+
+@layer base {
+  body {
+    @apply bg-neutral-100 text-neutral-900 font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Typography Defaults */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold uppercase tracking-tight text-neutral-900;
+  }
+
+  /* Interactive Elements - Strict Borders */
+  button,
+  input,
+  select,
+  textarea {
+    @apply border-2 border-neutral-900 rounded-none;
+  }
+}
+
+@layer components {
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-4 py-2.5 bg-p402-primary text-neutral-900 font-extrabold uppercase border-2 border-neutral-900 transition-transform duration-75 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99];
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2.5 bg-white text-neutral-900 font-bold uppercase border-2 border-neutral-900 transition-transform duration-75 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99];
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2.5 bg-transparent text-neutral-900 font-bold border-2 border-transparent hover:border-neutral-900 transition-colors;
+  }
+
+  /* Inputs */
+  .input-base {
+    @apply h-11 px-3 bg-white text-neutral-900 border-2 border-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-p402-info focus:ring-offset-2;
+  }
+
+  /* Cards/Panels */
+  .panel {
+    @apply bg-white border-2 border-neutral-900 p-4;
+  }
+
+  .panel-dark {
+    @apply bg-neutral-900 text-white border-2 border-neutral-900 p-4;
+  }
+}
+
+/* Utilities */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animations - Minimal */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out;
+}
