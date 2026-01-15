@@ -9,11 +9,15 @@ import { Header } from '@/components/Header';
 import { Chat } from '@/components/Chat';
 import { ModelSelector } from '@/components/ModelSelector';
 import { FundModal } from '@/components/FundModal';
+import { AuditTool } from '@/components/AuditTool';
+import { SettingsModal } from '@/components/SettingsModal';
 
 export default function Home() {
   const [isReady, setIsReady] = useState(false);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showFundModal, setShowFundModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeView, setActiveView] = useState<'chat' | 'audit'>('chat');
 
   const isConnected = useIsConnected();
   const loadProviders = useP402Store((s) => s.loadProviders);
@@ -22,25 +26,36 @@ export default function Home() {
 
   // Initialize MiniKit SDK
   useEffect(() => {
+    let isMounted = true;
+
     const init = async () => {
       try {
-        // Signal app is ready
-        await sdk.actions.ready();
+        // Signal ready as early as possible
+        sdk.actions.ready();
 
-        // Try to auto-reconnect if we have a stored wallet
+        // Reconnect if needed
         if (walletAddress) {
           await connect(walletAddress);
         }
 
-        setIsReady(true);
+        if (isMounted) setIsReady(true);
+
+        // Fallback: Signal ready again after UI should be rendered
+        setTimeout(() => {
+          if (isMounted) {
+            sdk.actions.ready();
+            console.log('Farcaster SDK signaled ready (retry)');
+          }
+        }, 500);
       } catch (error) {
         console.error('Failed to initialize:', error);
-        setIsReady(true); // Still show UI even if init fails
+        if (isMounted) setIsReady(true);
       }
     };
 
     init();
-  }, []);
+    return () => { isMounted = false; };
+  }, []); // Run only once on mount
 
   // Load providers when connected
   useEffect(() => {
@@ -65,18 +80,27 @@ export default function Home() {
 
   // Show connect screen if not connected
   if (!isConnected) {
-    return <ConnectScreen onConnect={() => {}} />;
+    return <ConnectScreen onConnect={() => { }} />;
   }
 
   // Main app
   return (
     <main className="min-h-screen flex flex-col bg-black">
-      <Header onFundClick={() => setShowFundModal(true)} />
-      
-      <Chat
-        onModelClick={() => setShowModelSelector(true)}
+      <Header
         onFundClick={() => setShowFundModal(true)}
+        onSettingsClick={() => setShowSettings(true)}
+        activeView={activeView}
+        onViewChange={setActiveView}
       />
+
+      {activeView === 'chat' ? (
+        <Chat
+          onModelClick={() => setShowModelSelector(true)}
+          onFundClick={() => setShowFundModal(true)}
+        />
+      ) : (
+        <AuditTool />
+      )}
 
       {/* Model Selector Overlay */}
       <ModelSelector
@@ -88,6 +112,12 @@ export default function Home() {
       <FundModal
         isOpen={showFundModal}
         onClose={() => setShowFundModal(false)}
+      />
+
+      {/* Settings Modal Overlay */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
     </main>
   );

@@ -141,6 +141,11 @@ class P402Client {
     return this.fetch<SpendSummary>(`/api/v2/analytics/spend?period=${period}`);
   }
 
+  // Recommendations
+  async getRecommendations(): Promise<{ recommendations: any[] }> {
+    return this.fetch<{ recommendations: any[] }>('/api/v2/analytics/recommendations');
+  }
+
   // Cost comparison for a specific request
   async compareCosts(
     inputTokens: number,

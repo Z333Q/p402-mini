@@ -36,6 +36,8 @@ export interface ChatMessage {
   model?: string;
   provider?: string;
   cost?: MessageCost;
+  latency_ms?: number;
+  cached?: boolean;
   timestamp: number;
 }
 
@@ -57,6 +59,10 @@ export interface ChatRequest {
   stream?: boolean;
   max_tokens?: number;
   temperature?: number;
+  p402?: {
+    mode?: 'cost' | 'quality' | 'speed' | 'balanced';
+    cache?: boolean;
+  };
 }
 
 export interface ChatResponse {
@@ -77,6 +83,12 @@ export interface ChatResponse {
     total_tokens: number;
   };
   cost: MessageCost;
+  p402_metadata?: {
+    provider: string;
+    cost_usd: number;
+    cached: boolean;
+    latency_ms: number;
+  };
 }
 
 export interface FundRequest {

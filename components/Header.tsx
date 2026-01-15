@@ -5,9 +5,12 @@ import { formatCost } from '@/lib/p402-client';
 
 interface HeaderProps {
   onFundClick: () => void;
+  onSettingsClick: () => void;
+  activeView: 'chat' | 'audit';
+  onViewChange: (view: 'chat' | 'audit') => void;
 }
 
-export function Header({ onFundClick }: HeaderProps) {
+export function Header({ onFundClick, onSettingsClick, activeView, onViewChange }: HeaderProps) {
   const balance = useBalance();
   const { spent, saved, requests } = useSavings();
   const isConnected = useP402Store((s) => s.isConnected);
@@ -25,6 +28,26 @@ export function Header({ onFundClick }: HeaderProps) {
             <span className="text-neutral-500 text-xs ml-1.5 font-mono uppercase font-bold">SDK // v2</span>
           </div>
         </div>
+
+        {/* View Switcher */}
+        {isConnected && (
+          <nav className="flex items-center bg-neutral-100 border-2 border-neutral-900 p-1">
+            <button
+              onClick={() => onViewChange('chat')}
+              className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter transition-all ${activeView === 'chat' ? 'bg-neutral-900 text-p402-primary' : 'text-neutral-500 hover:text-neutral-900'
+                }`}
+            >
+              Chat
+            </button>
+            <button
+              onClick={() => onViewChange('audit')}
+              className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-tighter transition-all ${activeView === 'audit' ? 'bg-neutral-900 text-p402-primary' : 'text-neutral-500 hover:text-neutral-900'
+                }`}
+            >
+              Audit
+            </button>
+          </nav>
+        )}
 
         {/* Balance & Stats */}
         {isConnected && (
@@ -52,6 +75,15 @@ export function Header({ onFundClick }: HeaderProps) {
               <div className="w-8 h-8 bg-p402-primary flex items-center justify-center hover:bg-p402-primary-hover transition-colors">
                 <span className="text-neutral-900 text-xl font-bold">+</span>
               </div>
+            </button>
+
+            {/* Settings Button */}
+            <button
+              onClick={onSettingsClick}
+              className="w-10 h-10 bg-white border-2 border-neutral-900 flex items-center justify-center
+                         hover:bg-neutral-100 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+            >
+              <span className="text-xl">⚙</span>
             </button>
           </div>
         )}

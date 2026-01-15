@@ -36,6 +36,10 @@ interface P402Store {
   totalSaved: number;
   requestCount: number;
 
+  // V2 Config
+  routingMode: 'cost' | 'quality' | 'speed' | 'balanced';
+  useCache: boolean;
+
   // Actions
   // User Profile
   userProfile: {
@@ -53,6 +57,8 @@ interface P402Store {
   clearChat: () => void;
   refreshSession: () => Promise<void>;
   fundSession: (amount: string, txHash?: string) => Promise<void>;
+  setRoutingMode: (mode: 'cost' | 'quality' | 'speed' | 'balanced') => void;
+  setUseCache: (useCache: boolean) => void;
 }
 
 export const useP402Store = create<P402Store>()(
@@ -74,6 +80,8 @@ export const useP402Store = create<P402Store>()(
       totalSpent: 0,
       totalSaved: 0,
       requestCount: 0,
+      routingMode: 'balanced',
+      useCache: true,
 
       // Connect wallet and create/load session
       connect: async (address: string, profile?: { username?: string; displayName?: string; pfpUrl?: string }) => {
@@ -162,12 +170,17 @@ export const useP402Store = create<P402Store>()(
               { role: 'user' as const, content },
             ],
             stream: true,
+            p402: {
+              mode: get().routingMode,
+              cache: get().useCache,
+            },
           });
 
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
           let fullContent = '';
           let finalCost: any = null;
+          let p402Metadata: any = null;
 
           if (reader) {
             while (true) {
@@ -195,6 +208,11 @@ export const useP402Store = create<P402Store>()(
                     if (parsed.cost) {
                       finalCost = parsed.cost;
                     }
+
+                    // Capture V2 metadata
+                    if (parsed.p402_metadata) {
+                      p402Metadata = parsed.p402_metadata;
+                    }
                   } catch (e) {
                     // Skip invalid JSON
                   }
@@ -203,7 +221,7 @@ export const useP402Store = create<P402Store>()(
             }
           }
 
-          // Create assistant message with cost
+          // Create assistant message with cost and metadata
           const assistantMessage: ChatMessage = {
             id: `msg_${Date.now()}`,
             role: 'assistant',
@@ -217,6 +235,8 @@ export const useP402Store = create<P402Store>()(
               savings: 0,
               savings_percent: 0,
             },
+            latency_ms: p402Metadata?.latency_ms,
+            cached: p402Metadata?.cached,
             timestamp: Date.now(),
           };
 
@@ -280,6 +300,9 @@ export const useP402Store = create<P402Store>()(
           throw error;
         }
       },
+
+      setRoutingMode: (mode) => set({ routingMode: mode }),
+      setUseCache: (useCache) => set({ useCache }),
     }),
     {
       name: 'p402-miniapp-storage',

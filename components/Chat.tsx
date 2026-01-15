@@ -112,8 +112,20 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                 </span>
               )}
             </div>
-            <div className="mt-2 text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
-              {message.cost.input_tokens} IN // {message.cost.output_tokens} OUT // {message.model}
+            <div className="mt-2 text-[10px] text-neutral-400 font-bold uppercase tracking-wider flex items-center justify-between">
+              <span>{message.cost.input_tokens} IN // {message.cost.output_tokens} OUT // {message.model}</span>
+              <div className="flex items-center gap-3">
+                {message.latency_ms && (
+                  <span className="flex items-center gap-1">
+                    <span className="text-p402-info">⚡</span> {message.latency_ms}ms
+                  </span>
+                )}
+                {message.cached && (
+                  <span className="text-p402-success border border-p402-success px-1 leading-none h-4 flex items-center">
+                    CACHED
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
