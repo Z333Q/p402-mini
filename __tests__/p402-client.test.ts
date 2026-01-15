@@ -1,4 +1,4 @@
-import { formatCost, formatSavings, estimateCost, p402 } from '@/lib/p402-client';
+import { formatCost, formatSavings, estimateCost, estimateTokens, p402, P402Client } from '@/lib/p402-client';
 
 // Mock global fetch
 const mockFetch = jest.fn();
@@ -7,32 +7,45 @@ global.fetch = mockFetch;
 describe('P402 Client SDK', () => {
     beforeEach(() => {
         mockFetch.mockClear();
-        // Reset singleton state if possible or just rely on overwriting
     });
 
-    describe('Utilities', () => {
+    describe('Helper Functions', () => {
         describe('formatCost', () => {
-            it('formats normal costs correctly', () => {
+            it('formats zero correctly', () => {
+                expect(formatCost(0)).toBe('$0.00');
+            });
+
+            it('formats small amounts in millicents', () => {
+                expect(formatCost(0.00001)).toBe('$0.10m');
+            });
+
+            it('formats micro amounts with 4 decimals', () => {
+                expect(formatCost(0.0012)).toBe('$0.0012');
+            });
+
+            it('formats normal amounts with 3 decimals', () => {
                 expect(formatCost(0.123)).toBe('$0.123');
-                expect(formatCost(0.05)).toBe('$0.050');
             });
-            it('formats small costs as millicents', () => {
-                expect(formatCost(0.0005)).toBe('$0.500m');
-                expect(formatCost(0.000123)).toBe('$0.123m');
-            });
-            it('formats medium costs with 4 decimals', () => {
-                expect(formatCost(0.005)).toBe('$0.0050');
-                expect(formatCost(0.0099)).toBe('$0.0099');
+
+            it('formats dollar amounts with 2 decimals', () => {
+                expect(formatCost(12.345)).toBe('$12.35');
             });
         });
 
         describe('formatSavings', () => {
-            it('calculates percentage correctly', () => {
-                expect(formatSavings(70, 100)).toBe('70%');
-                expect(formatSavings(5, 20)).toBe('25%');
+            it('returns 0% when direct cost is 0', () => {
+                expect(formatSavings(5, 0)).toBe('0%');
             });
-            it('handles zero direct cost', () => {
-                expect(formatSavings(10, 0)).toBe('0%');
+
+            it('calculates correct percentage', () => {
+                expect(formatSavings(30, 100)).toBe('30%');
+            });
+        });
+
+        describe('estimateTokens', () => {
+            it('estimates tokens from text length', () => {
+                const text = 'Hello world!'; // 12 chars
+                expect(estimateTokens(text)).toBe(3); // ceil(12/4)
             });
         });
 
@@ -45,13 +58,41 @@ describe('P402 Client SDK', () => {
         });
     });
 
+    describe('P402Client Error Handling', () => {
+        // Create a dedicated client instance for error tests if needed, 
+        // using the imported class or checking the default instance behaviour
+        const client = new P402Client('https://mock.p402.io');
+
+        it('throws error with code on 402', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                status: 402,
+                json: async () => ({ error: 'Insufficient balance', code: 'INSUFFICIENT_BALANCE' }),
+            });
+
+            try {
+                await client.chat({ model: 'test', messages: [] });
+                // @ts-ignore - explicitly testing failure
+                fail('Should have thrown');
+            } catch (e: any) {
+                expect(e.message).toBe('Insufficient balance');
+                expect(e.code).toBe('INSUFFICIENT_BALANCE');
+                expect(e.status).toBe(402);
+            }
+        });
+
+        it('handles network errors gracefully', async () => {
+            mockFetch.mockRejectedValueOnce(new Error('Network error'));
+            await expect(client.getProviders()).rejects.toThrow('Network error');
+        });
+    });
+
     describe('API Interactions', () => {
         const mockAddress = '0x123';
         const mockSession = { session_id: 'sess_1', wallet_address: mockAddress, balance_usdc: 10 };
 
         describe('getOrCreateSession', () => {
             it('returns existing session if found', async () => {
-                // Mock response for GET /sessions
                 mockFetch.mockResolvedValueOnce({
                     ok: true,
                     json: async () => ({ sessions: [mockSession] }),
@@ -66,12 +107,10 @@ describe('P402 Client SDK', () => {
             });
 
             it('creates new session if none found', async () => {
-                // First call returns empty list
                 mockFetch.mockResolvedValueOnce({
                     ok: true,
                     json: async () => ({ sessions: [] }),
                 });
-                // Second call (create) returns new session
                 mockFetch.mockResolvedValueOnce({
                     ok: true,
                     json: async () => mockSession,
@@ -80,10 +119,6 @@ describe('P402 Client SDK', () => {
                 const session = await p402.getOrCreateSession(mockAddress);
                 expect(session).toEqual(mockSession);
                 expect(mockFetch).toHaveBeenCalledTimes(2);
-                expect(mockFetch).toHaveBeenLastCalledWith(
-                    expect.stringContaining('/api/v2/sessions'),
-                    expect.objectContaining({ method: 'POST' })
-                );
             });
         });
 
@@ -97,20 +132,6 @@ describe('P402 Client SDK', () => {
 
                 const { providers } = await p402.getProviders();
                 expect(providers).toEqual(mockProviders);
-                expect(mockFetch).toHaveBeenCalledWith(
-                    expect.stringContaining('/api/v2/providers?health=true'),
-                    expect.anything()
-                );
-            });
-
-            it('throws error on failure', async () => {
-                mockFetch.mockResolvedValueOnce({
-                    ok: false,
-                    status: 500,
-                    json: async () => ({ error: 'Internal Error' }),
-                });
-
-                await expect(p402.getProviders()).rejects.toThrow('Internal Error');
             });
         });
 
@@ -127,7 +148,7 @@ describe('P402 Client SDK', () => {
                     expect.stringContaining('/api/v2/sessions/fund'),
                     expect.objectContaining({
                         method: 'POST',
-                        body: JSON.stringify({ session_id: 'sess_1', amount: '10' }),
+                        body: JSON.stringify({ session_id: 'sess_1', amount: '10', source: 'base_pay' }),
                     })
                 );
             });

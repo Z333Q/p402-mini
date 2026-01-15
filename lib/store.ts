@@ -1,116 +1,87 @@
-// P402 Mini App State Management (Zustand)
-
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { p402 } from './p402-client';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { p402, formatCost, formatSavings } from './p402-client';
 import type {
+  AppStore,
   P402Session,
   P402Provider,
   ChatMessage,
-  SpendSummary,
-  DEFAULT_MODEL,
+  MessageCost,
+  RoutingMode,
 } from './types';
 
-interface P402Store {
-  // Connection
-  isConnected: boolean;
-  walletAddress: string | null;
+// Default model to use
+const DEFAULT_MODEL = 'groq/llama-3.3-70b-versatile';
 
-  // Session
-  session: P402Session | null;
-  isLoadingSession: boolean;
-  sessionError: string | null;
-
-  // Providers/Models
-  providers: P402Provider[];
-  selectedModel: string;
-  isLoadingProviders: boolean;
-
-  // Chat
-  messages: ChatMessage[];
-  isStreaming: boolean;
-  streamingContent: string;
-
-  // Spend tracking
-  totalSpent: number;
-  totalSaved: number;
-  requestCount: number;
-
-  // V2 Config
-  routingMode: 'cost' | 'quality' | 'speed' | 'balanced';
-  useCache: boolean;
-
-  // Actions
-  // User Profile
-  userProfile: {
-    username?: string;
-    displayName?: string;
-    pfpUrl?: string;
-  } | null;
-
-  // Actions
-  connect: (address: string, profile?: { username?: string; displayName?: string; pfpUrl?: string }) => Promise<void>;
-  disconnect: () => void;
-  loadProviders: () => Promise<void>;
-  selectModel: (modelId: string) => void;
-  sendMessage: (content: string) => Promise<void>;
-  clearChat: () => void;
-  refreshSession: () => Promise<void>;
-  fundSession: (amount: string, txHash?: string) => Promise<void>;
-  setRoutingMode: (mode: 'cost' | 'quality' | 'speed' | 'balanced') => void;
-  setUseCache: (useCache: boolean) => void;
-}
-
-export const useP402Store = create<P402Store>()(
+// Create store with persistence
+export const useStore = create<AppStore>()(
   persist(
     (set, get) => ({
-      // Initial state
+      // ============================================
+      // Initial State
+      // ============================================
+
+      // Connection state
       isConnected: false,
       walletAddress: null,
-      userProfile: null, // Initial profile state
       session: null,
-      isLoadingSession: false,
-      sessionError: null,
-      providers: [],
-      selectedModel: 'openai/gpt-5.2-turbo',
-      isLoadingProviders: false,
-      messages: [],
+
+      // UI state
+      isLoading: false,
       isStreaming: false,
       streamingContent: '',
+      error: null,
+
+      // Providers
+      providers: [],
+      isLoadingProviders: false,
+      selectedModel: DEFAULT_MODEL,
+
+      // Chat
+      messages: [],
+
+      // Analytics
       totalSpent: 0,
       totalSaved: 0,
       requestCount: 0,
-      routingMode: 'balanced',
+
+      // Settings
+      routingMode: 'cost' as RoutingMode,
       useCache: true,
 
-      // Connect wallet and create/load session
-      connect: async (address: string, profile?: { username?: string; displayName?: string; pfpUrl?: string }) => {
-        set({ isLoadingSession: true, sessionError: null });
+      // ============================================
+      // Actions
+      // ============================================
+
+      // Connect wallet and get/create session
+      connect: async (walletAddress: string) => {
+        set({ isLoading: true, error: null });
 
         try {
-          const session = await p402.getOrCreateSession(address);
-          p402.setSession(session.session_id);
+          const session = await p402.getOrCreateSession(walletAddress);
 
           set({
             isConnected: true,
-            walletAddress: address,
-            userProfile: profile || null, // Create profile
+            walletAddress: walletAddress.toLowerCase(),
             session,
-            isLoadingSession: false,
+            isLoading: false,
           });
 
-          // Load providers after connecting
+          // Load providers in background
           get().loadProviders();
         } catch (error) {
+          console.error('Connection error:', error);
           set({
-            isLoadingSession: false,
-            sessionError: error instanceof Error ? error.message : 'Failed to connect',
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Failed to connect',
           });
+          throw error;
         }
       },
 
-      // Disconnect
+      // Disconnect and clear state
       disconnect: () => {
+        p402.clearSession();
         set({
           isConnected: false,
           walletAddress: null,
@@ -119,6 +90,7 @@ export const useP402Store = create<P402Store>()(
           totalSpent: 0,
           totalSaved: 0,
           requestCount: 0,
+          error: null,
         });
       },
 
@@ -127,11 +99,14 @@ export const useP402Store = create<P402Store>()(
         set({ isLoadingProviders: true });
 
         try {
-          const { providers } = await p402.getProviders();
+          const { providers } = await p402.getProviders(true);
           set({ providers, isLoadingProviders: false });
         } catch (error) {
           console.error('Failed to load providers:', error);
-          set({ isLoadingProviders: false });
+          set({
+            isLoadingProviders: false,
+            // Don't set error - providers are non-critical
+          });
         }
       },
 
@@ -142,47 +117,63 @@ export const useP402Store = create<P402Store>()(
 
       // Send a chat message
       sendMessage: async (content: string) => {
-        const { session, selectedModel, messages } = get();
+        const { session, selectedModel, messages, routingMode, useCache } = get();
 
-        if (!session || session.balance_usdc <= 0) {
+        if (!session) {
+          throw new Error('No active session');
+        }
+
+        if (session.balance_usdc <= 0) {
+          set({ error: 'Insufficient balance. Please add funds.' });
           throw new Error('Insufficient balance');
         }
 
+        // Create user message
         const userMessage: ChatMessage = {
-          id: `msg_${Date.now()}`,
+          id: `msg_${Date.now()}_user`,
           role: 'user',
           content,
           timestamp: Date.now(),
         };
 
+        // Add user message and start streaming
         set({
           messages: [...messages, userMessage],
           isStreaming: true,
           streamingContent: '',
+          error: null,
         });
 
         try {
+          // Build message history for context
+          const messageHistory = [
+            ...messages.map(m => ({ role: m.role, content: m.content })),
+            { role: 'user' as const, content },
+          ];
+
           // Use streaming for better UX
           const response = await p402.chatStream({
             model: selectedModel,
-            messages: [
-              ...messages.map(m => ({ role: m.role, content: m.content })),
-              { role: 'user' as const, content },
-            ],
+            messages: messageHistory,
             stream: true,
             p402: {
-              mode: get().routingMode,
-              cache: get().useCache,
+              mode: routingMode,
+              cache: useCache,
             },
           });
 
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
           let fullContent = '';
-          let finalCost: any = null;
-          let p402Metadata: any = null;
+          let finalCost: MessageCost | null = null;
+          let modelUsed = selectedModel;
+          let providerUsed = '';
+          let wasCached = false;
+          let latencyMs = 0;
 
           if (reader) {
+            const startTime = Date.now();
+
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
@@ -204,131 +195,183 @@ export const useP402Store = create<P402Store>()(
                       set({ streamingContent: fullContent });
                     }
 
-                    // Capture final cost info
+                    // Capture model/provider info
+                    if (parsed.model) {
+                      modelUsed = parsed.model;
+                    }
+
+                    // Handle final cost info (sent in last chunk)
                     if (parsed.cost) {
                       finalCost = parsed.cost;
                     }
 
-                    // Capture V2 metadata
+                    // Handle p402 metadata
                     if (parsed.p402_metadata) {
-                      p402Metadata = parsed.p402_metadata;
+                      providerUsed = parsed.p402_metadata.provider || '';
+                      wasCached = parsed.p402_metadata.cached || false;
+                      latencyMs = parsed.p402_metadata.latency_ms || 0;
                     }
                   } catch (e) {
-                    // Skip invalid JSON
+                    // Ignore JSON parse errors for incomplete chunks
                   }
                 }
               }
             }
+
+            // Calculate latency if not provided
+            if (!latencyMs) {
+              latencyMs = Date.now() - startTime;
+            }
           }
 
-          // Create assistant message with cost and metadata
+          // Create assistant message
           const assistantMessage: ChatMessage = {
-            id: `msg_${Date.now()}`,
+            id: `msg_${Date.now()}_assistant`,
             role: 'assistant',
             content: fullContent,
-            model: selectedModel,
-            cost: finalCost || {
-              input_tokens: 0,
-              output_tokens: 0,
-              total_cost: 0,
-              direct_cost: 0,
-              savings: 0,
-              savings_percent: 0,
-            },
-            latency_ms: p402Metadata?.latency_ms,
-            cached: p402Metadata?.cached,
+            model: modelUsed,
+            provider: providerUsed,
+            cost: finalCost || undefined,
+            latency_ms: latencyMs,
+            cached: wasCached,
             timestamp: Date.now(),
           };
 
           // Update state
-          const newMessages = [...get().messages, assistantMessage];
-          const newSpent = get().totalSpent + (finalCost?.total_cost || 0);
-          const newSaved = get().totalSaved + (finalCost?.savings || 0);
+          const currentMessages = get().messages;
+          const { totalSpent, totalSaved, requestCount } = get();
 
           set({
-            messages: newMessages,
+            messages: [...currentMessages, assistantMessage],
             isStreaming: false,
             streamingContent: '',
-            totalSpent: newSpent,
-            totalSaved: newSaved,
-            requestCount: get().requestCount + 1,
+            totalSpent: totalSpent + (finalCost?.total_cost || 0),
+            totalSaved: totalSaved + (finalCost?.savings || 0),
+            requestCount: requestCount + 1,
           });
 
-          // Refresh session to get updated balance
-          get().refreshSession();
+          // Refresh session balance
+          try {
+            const updatedSession = await p402.getBalance();
+            set({
+              session: {
+                ...get().session!,
+                balance_usdc: updatedSession.balance_usdc,
+                budget_spent: updatedSession.budget_spent,
+              }
+            });
+          } catch (e) {
+            // Non-critical - balance will refresh on next interaction
+          }
 
         } catch (error) {
-          set({ isStreaming: false, streamingContent: '' });
+          console.error('Chat error:', error);
+
+          // Remove user message on error
+          set({
+            messages: get().messages.slice(0, -1),
+            isStreaming: false,
+            streamingContent: '',
+            error: error instanceof Error ? error.message : 'Failed to send message',
+          });
+
           throw error;
         }
       },
 
-      // Clear chat history
-      clearChat: () => {
-        set({ messages: [] });
-      },
-
-      // Refresh session data
-      refreshSession: async () => {
-        const { session } = get();
-        if (!session) return;
-
-        try {
-          const updated = await p402.getSession(session.session_id);
-          set({ session: updated });
-        } catch (error) {
-          console.error('Failed to refresh session:', error);
-        }
-      },
-
-      // Fund the session
+      // Fund session
       fundSession: async (amount: string, txHash?: string) => {
         const { session } = get();
-        if (!session) throw new Error('No active session');
+
+        if (!session) {
+          throw new Error('No active session');
+        }
+
+        set({ isLoading: true, error: null });
 
         try {
           const result = await p402.fundSession({
             session_id: session.session_id,
             amount,
             tx_hash: txHash,
+            source: 'base_pay',
           });
 
-          if (result.success) {
-            set({ session: result.session });
+          if (result.success && result.session) {
+            set({
+              session: result.session,
+              isLoading: false,
+            });
+          } else {
+            throw new Error('Funding failed');
           }
         } catch (error) {
+          console.error('Fund error:', error);
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Failed to fund session',
+          });
           throw error;
         }
       },
 
-      setRoutingMode: (mode) => set({ routingMode: mode }),
-      setUseCache: (useCache) => set({ useCache }),
+      // Set routing mode
+      setRoutingMode: (mode: RoutingMode) => {
+        set({ routingMode: mode });
+      },
+
+      // Set cache preference
+      setUseCache: (useCache: boolean) => {
+        set({ useCache });
+      },
+
+      // Clear error
+      clearError: () => {
+        set({ error: null });
+      },
+
+      // Clear messages
+      clearMessages: () => {
+        set({ messages: [] });
+      },
     }),
     {
-      name: 'p402-miniapp-storage',
+      name: 'p402-mini-storage',
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist these fields
-        walletAddress: state.walletAddress,
         selectedModel: state.selectedModel,
-        totalSpent: state.totalSpent,
-        totalSaved: state.totalSaved,
-        requestCount: state.requestCount,
+        routingMode: state.routingMode,
+        useCache: state.useCache,
+        // Note: Don't persist session/wallet - require reconnection
       }),
     }
   )
 );
 
-// Selector hooks for performance
-export const useSession = () => useP402Store((state) => state.session);
-export const useBalance = () => useP402Store((state) => state.session?.balance_usdc ?? 0);
-export const useIsConnected = () => useP402Store((state) => state.isConnected);
-export const useMessages = () => useP402Store((state) => state.messages);
-export const useIsStreaming = () => useP402Store((state) => state.isStreaming);
-export const useSelectedModel = () => useP402Store((state) => state.selectedModel);
-export const useProviders = () => useP402Store((state) => state.providers);
-export const useUserProfile = () => useP402Store((state) => state.userProfile);
-export const useSavings = () => useP402Store((state) => ({
-  spent: state.totalSpent,
-  saved: state.totalSaved,
-  requests: state.requestCount,
-}));
+// ============================================
+// Selectors
+// ============================================
+
+export const selectBalance = (state: AppStore) => state.session?.balance_usdc ?? 0;
+export const selectIsReady = (state: AppStore) => state.isConnected && state.session !== null;
+export const selectCanSend = (state: AppStore) =>
+  state.isConnected &&
+  state.session !== null &&
+  state.session.balance_usdc > 0 &&
+  !state.isStreaming;
+
+export const selectSavingsPercent = (state: AppStore) => {
+  const total = state.totalSpent + state.totalSaved;
+  if (total === 0) return 0;
+  return Math.round((state.totalSaved / total) * 100);
+};
+
+export const selectFormattedBalance = (state: AppStore) =>
+  formatCost(state.session?.balance_usdc ?? 0);
+
+export const selectFormattedSpent = (state: AppStore) =>
+  formatCost(state.totalSpent);
+
+export const selectFormattedSaved = (state: AppStore) =>
+  formatCost(state.totalSaved);

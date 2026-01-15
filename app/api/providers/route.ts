@@ -1,62 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const P402_API = process.env.P402_API_URL || process.env.NEXT_PUBLIC_P402_API_URL || 'https://p402.io';
+const P402_API = process.env.P402_API_URL || 'https://p402.io';
 
-// GET /api/providers - Get available providers and models
+// Cache providers for 5 minutes
+let providersCache: { data: any; timestamp: number } | null = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// GET /api/providers - List available AI providers and models
 export async function GET(req: NextRequest) {
+  const includeHealth = req.nextUrl.searchParams.get('health') === 'true';
+  const forceRefresh = req.nextUrl.searchParams.get('refresh') === 'true';
+
   try {
-    const includeHealth = req.nextUrl.searchParams.get('health') === 'true';
-
-    const res = await fetch(
-      `${P402_API}/api/v2/providers${includeHealth ? '?health=true' : ''}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-p402-source': 'base-miniapp',
-        },
-        // Cache for 1 minute
-        next: { revalidate: 60 },
+    // Check cache (only for health=true requests, which are most common)
+    if (includeHealth && !forceRefresh && providersCache) {
+      const age = Date.now() - providersCache.timestamp;
+      if (age < CACHE_TTL) {
+        return NextResponse.json(providersCache.data, {
+          headers: {
+            'X-Cache': 'HIT',
+            'X-Cache-Age': String(Math.floor(age / 1000)),
+          },
+        });
       }
-    );
-
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: error.error || 'Failed to fetch providers' },
-        { status: res.status }
-      );
     }
 
-    const data = await res.json();
-    return NextResponse.json(data, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-      },
-    });
-  } catch (error) {
-    console.error('Providers error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
+    // Fetch from P402 API
+    const url = new URL(`${P402_API}/api/v2/providers`);
+    if (includeHealth) {
+      url.searchParams.set('health', 'true');
+    }
 
-// POST /api/providers - Compare costs for given parameters
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-
-    const res = await fetch(`${P402_API}/api/v2/providers/compare`, {
-      method: 'POST',
+    const res = await fetch(url.toString(), {
       headers: {
         'Content-Type': 'application/json',
         'x-p402-source': 'base-miniapp',
       },
-      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
     });
 
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: 'Failed to fetch providers' }));
+      return NextResponse.json(error, { status: res.status });
+    }
+
     const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+
+    // Update cache
+    if (includeHealth) {
+      providersCache = {
+        data,
+        timestamp: Date.now(),
+      };
+    }
+
+    return NextResponse.json(data, {
+      headers: {
+        'X-Cache': 'MISS',
+        'Cache-Control': 'public, max-age=300', // 5 minutes
+      },
+    });
   } catch (error) {
-    console.error('Compare error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Providers error:', error);
+
+    // Return cached data on error if available
+    if (providersCache) {
+      return NextResponse.json(providersCache.data, {
+        headers: {
+          'X-Cache': 'STALE',
+          'X-Cache-Error': 'true',
+        },
+      });
+    }
+
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return NextResponse.json(
+        { error: 'Request timeout', code: 'TIMEOUT' },
+        { status: 504 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
+      { status: 500 }
+    );
   }
 }

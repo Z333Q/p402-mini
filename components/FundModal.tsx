@@ -1,194 +1,171 @@
 'use client';
 
-import { useState } from 'react';
-import { useP402Store, useBalance, useSession } from '@/lib/store';
+import { useState, useCallback } from 'react';
+import { useStore } from '@/lib/store';
+import { formatCost } from '@/lib/p402-client';
+
+// Fund amount options in USD
+const FUND_OPTIONS = [
+  { amount: '1.00', label: '$1' },
+  { amount: '5.00', label: '$5' },
+  { amount: '10.00', label: '$10' },
+  { amount: '25.00', label: '$25' },
+];
 
 interface FundModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const FUND_AMOUNTS = [
-  { value: '5', label: '$5', requests: '~500' },
-  { value: '10', label: '$10', requests: '~1,000' },
-  { value: '25', label: '$25', requests: '~2,500' },
-  { value: '50', label: '$50', requests: '~5,000' },
-];
-
-// P402 Treasury address
-const P402_TREASURY = '0xb23f146251e3816a011e800bcbae704baa5619ec';
-
 export function FundModal({ isOpen, onClose }: FundModalProps) {
-  const [selectedAmount, setSelectedAmount] = useState('5');
+  const [selectedAmount, setSelectedAmount] = useState('5.00');
   const [customAmount, setCustomAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
-  const balance = useBalance();
-  const session = useSession();
-  const fundSession = useP402Store((s) => s.fundSession);
+  const { session, fundSession } = useStore();
 
   const amount = customAmount || selectedAmount;
 
-  const handleFund = async () => {
+  const handleFund = useCallback(async () => {
+    if (!session) return;
+
     setIsProcessing(true);
     setError(null);
 
     try {
-      // Use Base Pay SDK
-      const { pay, getPaymentStatus } = await import('@base-org/account');
+      // In production, this would trigger Base Pay
+      // For now, we'll simulate the flow
 
-      const payment = await pay({
-        amount: amount,
-        to: P402_TREASURY,
-        testnet: process.env.NEXT_PUBLIC_TESTNET === 'true',
-      });
+      // TODO: Integrate with Base Pay SDK
+      // const payment = await pay({
+      //   amount: amount,
+      //   to: process.env.NEXT_PUBLIC_P402_TREASURY!,
+      // });
+      // await fundSession(amount, payment.transactionHash);
 
-      // Wait for payment to complete
-      const { status } = await getPaymentStatus({
-        id: payment.id,
-        testnet: process.env.NEXT_PUBLIC_TESTNET === 'true',
-      });
+      // Temporary: direct fund for testing
+      await fundSession(amount);
 
-      if (status === 'completed') {
-        // Credit the session
-        await fundSession(amount, (payment as any).transactionHash);
-        setSuccess(true);
-
-        // Close after showing success
-        setTimeout(() => {
-          setSuccess(false);
-          onClose();
-        }, 2000);
-      } else {
-        throw new Error('Payment not completed');
-      }
+      onClose();
     } catch (err) {
       console.error('Fund error:', err);
-      setError(err instanceof Error ? err.message : 'Payment failed');
+      setError(err instanceof Error ? err.message : 'Failed to process payment');
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [session, amount, fundSession, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-neutral-900/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-      <div className="w-full max-w-md bg-white border-2 border-neutral-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+    <div
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white border-2 border-black p-6 max-w-md w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b-2 border-neutral-900 bg-neutral-50">
-          <h2 className="text-lg font-black uppercase tracking-tight">Add Funds</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold uppercase">Add Funds</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center bg-white border-2 border-neutral-900 
-                       hover:bg-neutral-900 hover:text-white transition-colors"
+            className="text-2xl font-bold hover:text-gray-600"
+            aria-label="Close"
           >
-            ✕
+            ×
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Current Balance */}
-          <div className="bg-neutral-900 text-white border-2 border-neutral-900 p-4 mb-6 shadow-[4px_4px_0px_0px_rgba(182,255,46,1)]">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-p402-primary mb-1">Current Protocol Balance</div>
-            <div className="text-3xl font-mono font-bold">${balance.toFixed(2)} <span className="text-sm text-neutral-400">USDC</span></div>
+        {/* Current Balance */}
+        <div className="bg-gray-100 border-2 border-black p-4 mb-6">
+          <div className="text-sm font-bold uppercase text-gray-600">Current Balance</div>
+          <div className="text-2xl font-bold text-lime-500">
+            {formatCost(session?.balance_usdc ?? 0)}
+          </div>
+        </div>
+
+        {/* Amount Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-bold uppercase mb-2">
+            Select Amount
+          </label>
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {FUND_OPTIONS.map((option) => (
+              <button
+                key={option.amount}
+                onClick={() => {
+                  setSelectedAmount(option.amount);
+                  setCustomAmount('');
+                }}
+                className={`
+                  py-3 font-bold uppercase border-2 border-black transition-transform
+                  ${selectedAmount === option.amount && !customAmount
+                    ? 'bg-lime-400 hover:bg-lime-500'
+                    : 'bg-white hover:bg-gray-100'
+                  }
+                  hover:-translate-y-0.5 active:translate-y-0
+                `}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
 
-          {/* Success State */}
-          {success && (
-            <div className="bg-p402-success/10 border-2 border-p402-success p-4 mb-6 text-center animate-fadeIn">
-              <div className="text-p402-success text-2xl mb-2 font-black">✓</div>
-              <div className="font-bold text-neutral-900 uppercase">Funds Authenticated</div>
-              <div className="text-sm font-mono text-neutral-600">+${amount} USDC</div>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <div className="bg-p402-error/10 border-2 border-p402-error p-3 mb-6 text-sm font-bold text-p402-error uppercase">
-              ! {error}
-            </div>
-          )}
-
-          {!success && (
-            <>
-              {/* Amount Selection */}
-              <div className="mb-6">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">
-                  Select Amount
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {FUND_AMOUNTS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        setSelectedAmount(opt.value);
-                        setCustomAmount('');
-                      }}
-                      className={`p-3 border-2 transition-all ${selectedAmount === opt.value && !customAmount
-                        ? 'bg-neutral-900 text-p402-primary border-neutral-900 shadow-[2px_2px_0px_0px_rgba(182,255,46,1)]'
-                        : 'bg-white text-neutral-900 border-neutral-200 hover:border-neutral-900 hover:-translate-y-0.5'
-                        }`}
-                    >
-                      <div className="font-black text-xl">${opt.value}</div>
-                      <div className="text-[10px] font-mono font-bold uppercase text-neutral-500">{opt.requests} REQ</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Custom Amount */}
-              <div className="mb-8">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">
-                  Or Custom Amount
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold">$</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="1000"
-                    step="1"
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                    placeholder="0"
-                    className="w-full h-12 bg-white border-2 border-neutral-900 pl-8 pr-16 text-lg font-bold font-mono
-                               focus:border-p402-info focus:outline-none focus:ring-0"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">USDC</span>
-                </div>
-              </div>
-
-              {/* Pay Button */}
-              <button
-                onClick={handleFund}
-                disabled={isProcessing || !amount || parseFloat(amount) <= 0}
-                className="w-full btn-primary flex items-center justify-center gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none disabled:opacity-50 disabled:shadow-none"
-              >
-                {isProcessing ? (
-                  <>
-                    <span className="w-5 h-5 border-4 border-neutral-900 border-t-transparent rounded-full animate-spin" />
-                    <span>PROCESSING...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>CONFIRM ${amount} USDC</span>
-                    <span className="text-xl">→</span>
-                  </>
-                )}
-              </button>
-
-              {/* Info */}
-              <div className="mt-6 text-[10px] text-neutral-400 font-mono text-center uppercase tracking-wider">
-                <p>SECURED BY BASE CHAIN • INSTANT SETTLEMENT</p>
-              </div>
-            </>
-          )}
+          {/* Custom Amount */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold">$</span>
+            <input
+              type="number"
+              placeholder="Custom amount"
+              value={customAmount}
+              onChange={(e) => setCustomAmount(e.target.value)}
+              min="0.01"
+              max="10000"
+              step="0.01"
+              className="w-full h-11 pl-8 pr-4 border-2 border-black font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2"
+            />
+          </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-100 border-2 border-red-500 text-red-700 p-3 mb-4 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Pay Button */}
+        <button
+          onClick={handleFund}
+          disabled={isProcessing || !amount || parseFloat(amount) <= 0}
+          className={`
+            w-full py-4 font-bold uppercase border-2 border-black transition-transform
+            ${isProcessing
+              ? 'bg-gray-300 cursor-not-allowed'
+              : 'bg-lime-400 hover:bg-lime-500 hover:-translate-y-0.5 active:translate-y-0'
+            }
+          `}
+        >
+          {isProcessing ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="animate-spin">⏳</span>
+              Processing...
+            </span>
+          ) : (
+            `Pay ${formatCost(parseFloat(amount) || 0)} USDC`
+          )}
+        </button>
+
+        {/* Info */}
+        <p className="text-xs text-gray-500 mt-4 text-center">
+          Payments processed via Base Pay. USDC on Base network.
+        </p>
       </div>
     </div>
   );
 }
+
+export default FundModal;
