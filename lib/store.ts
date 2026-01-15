@@ -375,3 +375,30 @@ export const selectFormattedSpent = (state: AppStore) =>
 
 export const selectFormattedSaved = (state: AppStore) =>
   formatCost(state.totalSaved);
+
+// ============================================
+// Legacy compatibility Hooks
+// ============================================
+
+export const useP402Store = useStore;
+
+export const useBalance = () => useStore(selectBalance);
+export const useIsStreaming = () => useStore((s) => s.isStreaming);
+export const useUserProfile = () => useStore((s) => ({
+  walletAddress: s.walletAddress,
+  isConnected: s.isConnected,
+  session: s.session,
+  username: s.walletAddress ? `${s.walletAddress.slice(0, 6)}...${s.walletAddress.slice(-4)}` : undefined,
+  pfpUrl: undefined
+}));
+export const useSavings = () => useStore((s) => ({
+  totalSaved: s.totalSaved,
+  savingsPercent: selectSavingsPercent(s),
+  spent: s.totalSpent,
+  saved: s.totalSaved,
+  requests: s.requestCount
+}));
+export const useProviders = () => useStore((s) => s.providers);
+export const useSelectedModel = () => useStore((s) => s.selectedModel);
+export const useIsConnected = () => useStore((s) => s.isConnected);
+export const useMessages = () => useStore((s) => s.messages);

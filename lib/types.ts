@@ -2,6 +2,17 @@
 // Last Updated: January 2025
 
 // ============================================
+// CONSTANTS
+// ============================================
+
+export const MODEL_TIERS = {
+  flagship: { label: 'Flagship', description: 'Best capability, highest cost', color: '#a855f7' },
+  balanced: { label: 'Balanced', description: 'Good trade-off between cost & quality', color: '#22c55e' },
+  efficient: { label: 'Efficient', description: 'Fast, lower capability', color: '#eab308' },
+  budget: { label: 'Budget', description: 'Lowest cost, basic tasks', color: '#94a3b8' },
+} as const;
+
+// ============================================
 // SESSION TYPES
 // ============================================
 

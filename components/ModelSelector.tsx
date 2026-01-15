@@ -103,10 +103,10 @@ export function ModelSelector({ isOpen, onClose }: ModelSelectorProps) {
           <div key={tier}>
             <h3
               className="text-xs font-black uppercase mb-3 flex items-center gap-2"
-              style={{ color: MODEL_TIERS[tier]?.color || '#888' }}
+              style={{ color: MODEL_TIERS[tier as keyof typeof MODEL_TIERS]?.color || '#888' }}
             >
               <span className="w-2 h-2 border border-current bg-current"></span>
-              {MODEL_TIERS[tier]?.label || tier} <span className="text-neutral-400">({models.length})</span>
+              {MODEL_TIERS[tier as keyof typeof MODEL_TIERS]?.label || tier} <span className="text-neutral-400">({models.length})</span>
             </h3>
             <div className="grid gap-3">
               {models.map((model) => (
@@ -117,8 +117,8 @@ export function ModelSelector({ isOpen, onClose }: ModelSelectorProps) {
                     onClose();
                   }}
                   className={`w-full text-left p-3 border-2 transition-all ${selectedModel === model.fullId
-                      ? 'bg-p402-primary/10 border-p402-primary shadow-[4px_4px_0px_0px_rgba(182,255,46,1)]'
-                      : 'bg-white border-neutral-200 hover:border-neutral-900 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
+                    ? 'bg-p402-primary/10 border-p402-primary shadow-[4px_4px_0px_0px_rgba(182,255,46,1)]'
+                    : 'bg-white border-neutral-200 hover:border-neutral-900 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
                     }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -185,7 +185,7 @@ export function ModelBadge({ onClick }: { onClick: () => void }) {
     >
       <span
         className="w-2 h-2 border border-black"
-        style={{ backgroundColor: MODEL_TIERS[model?.tier || 'balanced']?.color || '#888' }}
+        style={{ backgroundColor: MODEL_TIERS[(model?.tier || 'balanced') as keyof typeof MODEL_TIERS]?.color || '#888' }}
       />
       <span className="font-bold text-neutral-900 truncate max-w-[140px] uppercase tracking-tight">
         {model?.name || selectedModel.split('/').pop()}

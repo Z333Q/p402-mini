@@ -313,5 +313,4 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-// Named export for class
-export { P402Client };
+

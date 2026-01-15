@@ -8,7 +8,7 @@
 
 const P402_API = process.env.P402_API_URL || 'https://p402.io';
 
-async function test(name: string, fn: () => Promise<void>) {
+async function runTest(name: string, fn: () => Promise<void>) {
     try {
         await fn();
         console.log(`✅ ${name}`);
@@ -24,7 +24,7 @@ async function main() {
     console.log(`   API URL: ${P402_API}\n`);
 
     // Test 1: Health check (if exists)
-    await test('API is reachable', async () => {
+    await runTest('API is reachable', async () => {
         const res = await fetch(`${P402_API}/`, { method: 'HEAD' });
         if (!res.ok && res.status !== 404) {
             throw new Error(`Status: ${res.status}`);
@@ -32,7 +32,7 @@ async function main() {
     });
 
     // Test 2: Providers endpoint
-    await test('GET /api/v2/providers returns providers', async () => {
+    await runTest('GET /api/v2/providers returns providers', async () => {
         const res = await fetch(`${P402_API}/api/v2/providers?health=true`);
         if (!res.ok) {
             throw new Error(`Status: ${res.status}`);
@@ -45,7 +45,7 @@ async function main() {
 
     // Test 3: Create session
     let sessionId: string | null = null;
-    await test('POST /api/v2/sessions creates session', async () => {
+    await runTest('POST /api/v2/sessions creates session', async () => {
         const res = await fetch(`${P402_API}/api/v2/sessions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -66,7 +66,7 @@ async function main() {
 
     // Test 4: Get session
     if (sessionId) {
-        await test('GET /api/v2/sessions/:id returns session', async () => {
+        await runTest('GET /api/v2/sessions/:id returns session', async () => {
             const res = await fetch(`${P402_API}/api/v2/sessions/${sessionId}`);
             if (!res.ok) {
                 throw new Error(`Status: ${res.status}`);
@@ -80,7 +80,7 @@ async function main() {
 
     // Test 5: Chat completions (will fail without balance, but tests endpoint exists)
     if (sessionId) {
-        await test('POST /api/v2/chat/completions returns 402 without balance', async () => {
+        await runTest('POST /api/v2/chat/completions returns 402 without balance', async () => {
             const res = await fetch(`${P402_API}/api/v2/chat/completions`, {
                 method: 'POST',
                 headers: {

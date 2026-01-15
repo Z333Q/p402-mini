@@ -53,7 +53,7 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
         setError('Environment: Browser (Demo Mode Enabled)');
       }
 
-      await connect(walletAddress, userProfile);
+      await connect(walletAddress);
       onConnect();
     } catch (err) {
       console.error('Connect error:', err);
