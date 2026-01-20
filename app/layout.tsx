@@ -92,7 +92,12 @@ export default function RootLayout({
                   if (type === 'message') {
                     const filteredListener = function(event) {
                       try {
+                        // Never block Farcaster SDK messages
                         const dataString = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
+                        if (dataString.includes('farcaster') || (event.data && event.data.type?.startsWith('farcaster'))) {
+                          return listener.apply(this, arguments);
+                        }
+
                         if (spam.test(dataString) || (event.data && event.data.target === 'metamask-inpage')) {
                           event.stopImmediatePropagation();
                           return;

@@ -29,33 +29,49 @@ export default function Home() {
     let isMounted = true;
 
     const init = async () => {
+      console.log('[P402] Starting initialization...');
       try {
-        // Signal ready as early as possible
-        sdk.actions.ready();
+        // Wait a tiny bit for the frame to settle before signaling ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (typeof window !== 'undefined' && sdk?.actions?.ready) {
+          sdk.actions.ready();
+          console.log('[P402] Initial SDK ready signal sent');
+        }
 
         // Reconnect if needed
         if (walletAddress) {
-          await connect(walletAddress);
+          console.log('[P402] Reconnecting previously used wallet:', walletAddress);
+          try {
+            await connect(walletAddress);
+          } catch (e) {
+            console.error('[P402] Reconnection failed:', e);
+          }
         }
 
-        if (isMounted) setIsReady(true);
+        if (isMounted) {
+          setIsReady(true);
+          console.log('[P402] App is ready to render');
+        }
 
-        // Fallback: Signal ready again after UI should be rendered
-        setTimeout(() => {
-          if (isMounted) {
-            sdk.actions.ready();
-            console.log('Farcaster SDK signaled ready (retry)');
-          }
-        }, 500);
+        // Multiple fallback ready signals to ensure host receives it after UI mounting
+        [200, 500, 1000].forEach(delay => {
+          setTimeout(() => {
+            if (isMounted && sdk?.actions?.ready) {
+              sdk.actions.ready();
+              console.log(`[P402] Re-signaled ready after ${delay}ms`);
+            }
+          }, delay);
+        });
       } catch (error) {
-        console.error('Failed to initialize:', error);
+        console.error('[P402] Critical initialization failure:', error);
         if (isMounted) setIsReady(true);
       }
     };
 
     init();
     return () => { isMounted = false; };
-  }, []); // Run only once on mount
+  }, [walletAddress, connect]); // Added dependencies for clarity
 
   // Load providers when connected
   useEffect(() => {
