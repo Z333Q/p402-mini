@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       },
       body: JSON.stringify({
         wallet_address: wallet,
-        budget_usd: 0,
+        budget_usd: 0.01, // Minimum budget required by V2 Router
         source: 'base_miniapp',
       }),
     });
@@ -99,11 +99,11 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await res.json();
-    
+
     if (res.ok) {
       return NextResponse.json(normalizeSession(data), { status: res.status });
     }
-    
+
     return NextResponse.json(data, { status: res.status });
   } catch (error) {
     console.error('Create session error:', error);

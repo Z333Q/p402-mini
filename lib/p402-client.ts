@@ -92,7 +92,7 @@ class P402Client {
       method: 'POST',
       body: JSON.stringify({
         wallet_address: walletAddress,
-        budget_usd: 0, // Start with 0, user will fund
+        budget_usd: 0.01, // Minimum budget required by V2 Router
         source: 'base_miniapp',
       }),
     });
