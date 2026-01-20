@@ -2,6 +2,7 @@
 
 import { useP402Store, useBalance, useSavings } from '@/lib/store';
 import { formatCost } from '@/lib/p402-client';
+import { P402Logo } from './P402Logo';
 
 interface HeaderProps {
   onFundClick: () => void;
@@ -20,9 +21,7 @@ export function Header({ onFundClick, onSettingsClick, activeView, onViewChange 
       <div className="flex items-center justify-between p-3.5">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-p402-primary border-2 border-neutral-900 flex items-center justify-center">
-            <span className="text-neutral-900 font-extrabold text-xl">P</span>
-          </div>
+          <P402Logo size="md" />
           <div>
             <span className="font-bold text-lg text-neutral-900 tracking-tight">P402</span>
             <span className="text-neutral-500 text-xs ml-1.5 font-mono uppercase font-bold">SDK // v2</span>

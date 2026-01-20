@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useP402Store } from '@/lib/store';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { P402Logo } from './P402Logo';
 
 interface ConnectScreenProps {
   onConnect: () => void;
@@ -84,9 +85,7 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black px-4">
       {/* Logo */}
-      <div className="w-20 h-20 bg-[#B6FF2E] flex items-center justify-center mb-8">
-        <span className="text-black font-black text-5xl">P</span>
-      </div>
+      <P402Logo size="xl" className="mb-8" />
 
       {/* Title */}
       <h1 className="text-white text-2xl font-bold mb-2 text-center">
@@ -102,7 +101,7 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
           <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">
             <span className="text-black text-xs">✓</span>
           </div>
-          <span>GPT-4, Claude, Llama & more</span>
+          <span>GPT-5.2, Claude 4.5, Gemini 3 & more</span>
         </div>
         <div className="flex items-center gap-3 text-gray-300 text-sm">
           <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">

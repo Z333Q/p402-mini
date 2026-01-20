@@ -18,7 +18,9 @@ import type {
   ListResponse,
 } from './types';
 
-const P402_API_URL = process.env.NEXT_PUBLIC_P402_API_URL || 'https://p402.io';
+const P402_API_URL = typeof window !== 'undefined'
+  ? '' // Use local proxy in browser
+  : (process.env.P402_API_URL || 'https://p402.io');
 
 class P402Client {
   private baseUrl: string;
