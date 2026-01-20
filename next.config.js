@@ -61,7 +61,7 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://* blob:; font-src 'self'; connect-src 'self' https://* wss://*; frame-ancestors 'self' https://warpcast.com https://*.farcaster.xyz;"
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://* blob:; font-src 'self'; connect-src 'self' https://* wss://*; frame-ancestors 'self' https://warpcast.com https://*.farcaster.xyz https://*.base.dev https://base.dev;"
           },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' }
         ],
