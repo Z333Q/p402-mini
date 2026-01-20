@@ -29,7 +29,7 @@ export async function GET() {
         `${APP_URL}/screenshots/savings.png`,
       ],
       primaryCategory: 'developer-tools',
-      tags: ['ai', 'llm', 'api', 'crypto', 'usdc', 'payments', 'gpt', 'claude'],
+      tags: ['ai', 'llm', 'api', 'crypto', 'usdc'],
 
       // Social/OG
       heroImageUrl: `${APP_URL}/og-image.png`,
