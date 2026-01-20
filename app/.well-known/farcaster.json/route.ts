@@ -22,7 +22,7 @@ export async function GET() {
       // Discovery
       subtitle: 'AI Without Overpaying',
       description:
-        'Access 100+ AI models from GPT-4, Claude, Llama and more. Pay with USDC on Base. Save 70% vs direct API access. Smart routing automatically picks the best model for your task.',
+        'Access over 100 AI models including GPT Claude and Llama. Pay with USDC on Base. Save 70 percent versus direct API access. Smart routing picks the best model for you.',
       screenshotUrls: [
         `${APP_URL}/screenshots/chat.png`,
         `${APP_URL}/screenshots/models.png`,
@@ -35,7 +35,7 @@ export async function GET() {
       heroImageUrl: `${APP_URL}/og-image.png`,
       tagline: 'Stop overpaying for AI',
       ogTitle: 'P402 - AI Without Overpaying',
-      ogDescription: 'Access 100+ AI models. Pay with USDC. Save 70%.',
+      ogDescription: 'Access over 100 AI models. Pay with USDC. Save 70 percent.',
       ogImageUrl: `${APP_URL}/og-image.png`,
 
       // Indexing
