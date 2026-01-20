@@ -39,7 +39,7 @@ export const metadata: Metadata = {
           type: 'launch_miniapp',
           name: 'P402',
           url: APP_URL,
-          splashImageUrl: `${APP_URL}/splash.png`,
+          splashImageUrl: `${APP_URL}/og-image.png`,
           splashBackgroundColor: '#000000',
         },
       },

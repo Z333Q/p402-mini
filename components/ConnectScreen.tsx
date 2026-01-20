@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useP402Store } from '@/lib/store';
 import { sdk } from '@farcaster/miniapp-sdk';
-import { P402Logo } from './P402Logo';
 
 interface ConnectScreenProps {
   onConnect: () => void;
@@ -85,7 +84,7 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black px-4">
       {/* Logo */}
-      <P402Logo size="xl" className="mb-8" />
+      <img src="/icon.png" alt="P402" className="w-20 h-20 mb-8 border-2 border-black rounded-lg" />
 
       {/* Title */}
       <h1 className="text-white text-2xl font-bold mb-2 text-center">

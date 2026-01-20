@@ -15,7 +15,7 @@ export async function GET() {
       name: 'P402',
       homeUrl: APP_URL,
       iconUrl: `${APP_URL}/icon.png`,
-      splashImageUrl: `${APP_URL}/splash.png`,
+      splashImageUrl: `${APP_URL}/og-image.png`,
       splashBackgroundColor: '#000000',
       webhookUrl: `${APP_URL}/api/webhook`,
 
