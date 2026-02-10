@@ -10,7 +10,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { p402 } from './p402-client';
-import type { P402Session, P402Provider, P402Model, ChatMessage, UserProfile } from './types';
+import type { P402Session, P402Provider, P402Model, ChatMessage, UserProfile, Transaction } from './types';
 
 // ============================================
 // STATE INTERFACE
@@ -44,6 +44,9 @@ interface P402State {
   totalSaved: number;
   requestCount: number;
 
+  // Transactions
+  transactions: Transaction[];
+
   // Actions
   connect: (walletAddress: string, userProfile?: UserProfile) => Promise<void>;
   disconnect: () => void;
@@ -52,6 +55,7 @@ interface P402State {
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
   fundSession: (amount: string, txHash?: string) => Promise<void>;
+  addTransaction: (tx: Transaction) => void;
   setRoutingMode: (mode: 'cost' | 'quality' | 'speed' | 'balanced') => void;
   setUseCache: (useCache: boolean) => void;
   refreshSession: () => Promise<void>;
@@ -80,6 +84,7 @@ export const useP402Store = create<P402State>()(
       totalSpent: 0,
       totalSaved: 0,
       requestCount: 0,
+      transactions: [],
 
       // ============================================
       // CONNECTION ACTIONS
@@ -342,6 +347,16 @@ export const useP402Store = create<P402State>()(
       },
 
       // ============================================
+      // TRANSACTION ACTIONS
+      // ============================================
+
+      addTransaction: (tx: Transaction) => {
+        set((state) => ({
+          transactions: [...state.transactions, tx],
+        }));
+      },
+
+      // ============================================
       // SETTINGS ACTIONS
       // ============================================
 
@@ -351,7 +366,6 @@ export const useP402Store = create<P402State>()(
     {
       name: 'p402-miniapp-storage',
       partialize: (state) => ({
-        // Only persist these fields
         walletAddress: state.walletAddress,
         selectedModel: state.selectedModel,
         totalSpent: state.totalSpent,
@@ -359,6 +373,7 @@ export const useP402Store = create<P402State>()(
         requestCount: state.requestCount,
         routingMode: state.routingMode,
         useCache: state.useCache,
+        transactions: state.transactions,
       }),
     }
   )

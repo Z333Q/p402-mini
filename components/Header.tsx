@@ -6,14 +6,16 @@ import { formatCost } from '@/lib/p402-client';
 interface HeaderProps {
   onFundClick: () => void;
   onSettingsClick: () => void;
+  onHistoryClick: () => void;
   activeView: 'chat' | 'audit';
   onViewChange: (view: 'chat' | 'audit') => void;
 }
 
-export function Header({ onFundClick, onSettingsClick, activeView, onViewChange }: HeaderProps) {
+export function Header({ onFundClick, onSettingsClick, onHistoryClick, activeView, onViewChange }: HeaderProps) {
   const balance = useBalance();
   const { spent, saved, requests } = useSavings();
   const isConnected = useP402Store((s) => s.isConnected);
+  const transactionCount = useP402Store((s) => s.transactions.length);
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b-2 border-neutral-900">
@@ -47,7 +49,7 @@ export function Header({ onFundClick, onSettingsClick, activeView, onViewChange 
           </nav>
         )}
 
-        {/* Balance & Stats */}
+        {/* Balance & Actions */}
         {isConnected && (
           <div className="flex items-center gap-3">
             {/* Savings Badge */}
@@ -61,7 +63,7 @@ export function Header({ onFundClick, onSettingsClick, activeView, onViewChange 
             {/* Balance */}
             <button
               onClick={onFundClick}
-              className="flex items-center bg-white border-2 border-neutral-900 
+              className="flex items-center bg-white border-2 border-neutral-900
                          hover:-translate-y-0.5 transition-transform active:translate-y-0"
             >
               <div className="px-3 py-1 text-right border-r-2 border-neutral-900">
@@ -75,21 +77,37 @@ export function Header({ onFundClick, onSettingsClick, activeView, onViewChange 
               </div>
             </button>
 
+            {/* History Button */}
+            <button
+              onClick={onHistoryClick}
+              className="w-10 h-10 bg-white border-2 border-neutral-900 flex items-center justify-center
+                         hover:bg-neutral-100 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] relative"
+              title="Transaction History"
+            >
+              <span className="text-lg">&#8634;</span>
+              {transactionCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-p402-primary border border-neutral-900
+                                 text-[9px] font-bold flex items-center justify-center">
+                  {transactionCount}
+                </span>
+              )}
+            </button>
+
             {/* Settings Button */}
             <button
               onClick={onSettingsClick}
               className="w-10 h-10 bg-white border-2 border-neutral-900 flex items-center justify-center
                          hover:bg-neutral-100 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
             >
-              <span className="text-xl">⚙</span>
+              <span className="text-xl">&#9881;</span>
             </button>
           </div>
         )}
       </div>
 
-      {/* Stats Bar (only show if has activity) */}
+      {/* Stats Bar */}
       {isConnected && requests > 0 && (
-        <div className="flex items-center justify-between px-4 py-2 bg-neutral-100 
+        <div className="flex items-center justify-between px-4 py-2 bg-neutral-100
                         border-b-2 border-neutral-900 text-xs font-mono">
           <div className="flex items-center gap-6">
             <span className="text-neutral-500">

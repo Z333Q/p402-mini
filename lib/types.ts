@@ -263,6 +263,87 @@ export interface UserProfile {
 }
 
 // ============================================
+// PAYMENT TYPES
+// ============================================
+
+export type PaymentErrorType =
+  | 'insufficient_funds'
+  | 'signature_rejected'
+  | 'network_error'
+  | 'settlement_failed'
+  | 'unknown';
+
+export interface PaymentError {
+  type: PaymentErrorType;
+  message: string;
+  recoveryAction?: () => void;
+}
+
+export interface PaymentParams {
+  amountUSD: number;
+  sessionId: string;
+}
+
+export interface PaymentResult {
+  success: boolean;
+  txHash?: string;
+  error?: string;
+  errorType?: PaymentErrorType;
+}
+
+export interface Transaction {
+  id: string;
+  amount: number;
+  txHash: string;
+  timestamp: string;
+  status: 'pending' | 'confirmed' | 'failed';
+}
+
+export interface SettlementRequest {
+  scheme: 'exact';
+  amount: string;
+  asset: string;
+  payment: {
+    scheme: 'exact';
+    authorization: {
+      from: string;
+      to: string;
+      value: string;
+      validAfter: number;
+      validBefore: number;
+      nonce: string;
+      v: number;
+      r: string;
+      s: string;
+    };
+  };
+}
+
+export interface SettlementResponse {
+  scheme: string;
+  settled: boolean;
+  facilitatorId: string;
+  payer?: string;
+  receipt: {
+    txHash: string;
+    verifiedAmount?: string;
+    asset?: string;
+    timestamp: string;
+  };
+}
+
+// ============================================
+// TOAST TYPES
+// ============================================
+
+export interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  title: string;
+  message?: string;
+}
+
+// ============================================
 // API RESPONSE WRAPPERS
 // ============================================
 

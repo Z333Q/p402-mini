@@ -11,12 +11,15 @@ import { ModelSelector } from '@/components/ModelSelector';
 import { FundModal } from '@/components/FundModal';
 import { AuditTool } from '@/components/AuditTool';
 import { SettingsModal } from '@/components/SettingsModal';
+import { TransactionHistory } from '@/components/TransactionHistory';
+import { ToastContainer } from '@/components/Toast';
 
 export default function Home() {
   const [isReady, setIsReady] = useState(false);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showFundModal, setShowFundModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'audit'>('chat');
 
   const isConnected = useIsConnected();
@@ -29,19 +32,15 @@ export default function Home() {
     let isMounted = true;
 
     const init = async () => {
-      console.log('[P402] Starting initialization...');
       try {
-        // Wait a tiny bit for the frame to settle before signaling ready
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (typeof window !== 'undefined' && sdk?.actions?.ready) {
           sdk.actions.ready();
-          console.log('[P402] Initial SDK ready signal sent');
         }
 
-        // Reconnect if needed
+        // Reconnect if wallet address persisted
         if (walletAddress) {
-          console.log('[P402] Reconnecting previously used wallet:', walletAddress);
           try {
             await connect(walletAddress);
           } catch (e) {
@@ -51,27 +50,25 @@ export default function Home() {
 
         if (isMounted) {
           setIsReady(true);
-          console.log('[P402] App is ready to render');
         }
 
-        // Multiple fallback ready signals to ensure host receives it after UI mounting
+        // Fallback ready signals for host detection
         [200, 500, 1000].forEach(delay => {
           setTimeout(() => {
             if (isMounted && sdk?.actions?.ready) {
               sdk.actions.ready();
-              console.log(`[P402] Re-signaled ready after ${delay}ms`);
             }
           }, delay);
         });
       } catch (error) {
-        console.error('[P402] Critical initialization failure:', error);
+        console.error('[P402] Initialization failure:', error);
         if (isMounted) setIsReady(true);
       }
     };
 
     init();
     return () => { isMounted = false; };
-  }, [walletAddress, connect]); // Added dependencies for clarity
+  }, [walletAddress, connect]);
 
   // Load providers when connected
   useEffect(() => {
@@ -80,7 +77,7 @@ export default function Home() {
     }
   }, [isConnected, loadProviders]);
 
-  // Show loading state
+  // Loading state
   if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -94,7 +91,7 @@ export default function Home() {
     );
   }
 
-  // Show connect screen if not connected
+  // Connect screen
   if (!isConnected) {
     return <ConnectScreen onConnect={() => { }} />;
   }
@@ -105,6 +102,7 @@ export default function Home() {
       <Header
         onFundClick={() => setShowFundModal(true)}
         onSettingsClick={() => setShowSettings(true)}
+        onHistoryClick={() => setShowHistory(true)}
         activeView={activeView}
         onViewChange={setActiveView}
       />
@@ -118,23 +116,29 @@ export default function Home() {
         <AuditTool />
       )}
 
-      {/* Model Selector Overlay */}
+      {/* Overlays */}
       <ModelSelector
         isOpen={showModelSelector}
         onClose={() => setShowModelSelector(false)}
       />
 
-      {/* Fund Modal Overlay */}
       <FundModal
         isOpen={showFundModal}
         onClose={() => setShowFundModal(false)}
       />
 
-      {/* Settings Modal Overlay */}
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
       />
+
+      <TransactionHistory
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+      />
+
+      {/* Toast notifications */}
+      <ToastContainer />
     </main>
   );
 }

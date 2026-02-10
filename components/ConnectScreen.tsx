@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useP402Store } from '@/lib/store';
 import { sdk } from '@farcaster/miniapp-sdk';
 
@@ -11,65 +11,60 @@ interface ConnectScreenProps {
 export function ConnectScreen({ onConnect }: ConnectScreenProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInFarcaster, setIsInFarcaster] = useState<boolean | null>(null);
+  const [farcasterUrl, setFarcasterUrl] = useState('');
   const connect = useP402Store((s) => s.connect);
+
+  // Detect environment on mount
+  useEffect(() => {
+    async function detectEnvironment() {
+      try {
+        const inMiniApp = await sdk.isInMiniApp();
+        setIsInFarcaster(inMiniApp);
+      } catch {
+        setIsInFarcaster(false);
+      }
+    }
+    detectEnvironment();
+    setFarcasterUrl(`https://warpcast.com/~/mini-app?url=${encodeURIComponent(window.location.href)}`);
+  }, []);
 
   const handleConnect = async () => {
     setIsConnecting(true);
     setError(null);
 
     try {
-      // Check if we are in a Farcaster mini app environment
       const isInMiniApp = await sdk.isInMiniApp();
 
-      let walletAddress: string;
-      let userProfile: {
-        username?: string;
-        displayName?: string;
-        pfpUrl?: string;
-        fid?: number;
-      } | undefined;
-
-      if (isInMiniApp) {
-        // Get the user's context from the SDK
-        const context = await sdk.context;
-
-        if (!context?.user?.fid) {
-          throw new Error('Unable to get user context from Farcaster host');
-        }
-
-        // Cast to any to access all possible wallet fields
-        const contextAny = context as any;
-
-        // Priority order for wallet detection:
-        // 1. Connected wallet from context (if user connected externally)
-        // 2. Verified Ethereum addresses from Farcaster profile
-        // 3. Custody address
-        // 4. FID-based identifier as last resort
-        walletAddress =
-          contextAny.connectedWallet?.address ||
-          contextAny.user.verifiedAddresses?.ethAddresses?.[0] ||
-          contextAny.custodyAddress ||
-          `fid:${context.user.fid}`;
-
-        userProfile = {
-          username: context.user.username,
-          displayName: context.user.displayName,
-          pfpUrl: context.user.pfpUrl,
-          fid: context.user.fid,
-        };
-
-        console.log('[P402] Connected with wallet:', walletAddress);
-        console.log('[P402] User FID:', context.user.fid);
-      } else {
-        // Fallback for browser testing/development
-        console.warn('Not in mini app environment. Using browser fallback.');
-
-        // Use a deterministic mock address for browser testing
-        walletAddress = '0x0000000000000000000000000000000000000000';
-
-        // Set a non-blocking message
-        setError('Environment: Browser (Demo Mode Enabled)');
+      if (!isInMiniApp) {
+        setError('Please open P402 Mini in the Farcaster app for wallet access.');
+        return;
       }
+
+      const context = await sdk.context;
+
+      if (!context?.user?.fid) {
+        throw new Error('Unable to get user context from Farcaster');
+      }
+
+      // Wallet detection priority:
+      // 1. Connected wallet from context
+      // 2. Verified Ethereum addresses from Farcaster profile
+      // 3. Custody address
+      // 4. FID-based identifier as last resort
+      const contextAny = context as any;
+      const walletAddress =
+        contextAny.connectedWallet?.address ||
+        contextAny.user.verifiedAddresses?.ethAddresses?.[0] ||
+        contextAny.custodyAddress ||
+        `fid:${context.user.fid}`;
+
+      const userProfile = {
+        username: context.user.username,
+        displayName: context.user.displayName,
+        pfpUrl: context.user.pfpUrl,
+        fid: context.user.fid,
+      };
 
       await connect(walletAddress, userProfile);
       onConnect();
@@ -81,12 +76,101 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
     }
   };
 
+  // Loading state while detecting environment
+  if (isInFarcaster === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="w-16 h-16 bg-[#B6FF2E] flex items-center justify-center animate-pulse">
+          <span className="text-black font-black text-3xl">P</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Browser fallback: Farcaster required
+  if (!isInFarcaster) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black px-4">
+        <img src="/icon.png" alt="P402" className="w-20 h-20 mb-8 border-2 border-black rounded-lg" />
+
+        <h1 className="text-white text-2xl font-bold mb-2 text-center">
+          Open in Farcaster
+        </h1>
+        <p className="text-gray-400 text-sm mb-8 text-center max-w-xs">
+          P402 Mini requires Farcaster for secure wallet connection and USDC payments on Base.
+        </p>
+
+        {/* Instructions */}
+        <div className="w-full max-w-xs mb-8 space-y-3">
+          <div className="flex items-center gap-3 text-gray-300 text-sm">
+            <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">
+              <span className="text-black text-xs font-bold">1</span>
+            </div>
+            <span>Install Warpcast on your device</span>
+          </div>
+          <div className="flex items-center gap-3 text-gray-300 text-sm">
+            <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">
+              <span className="text-black text-xs font-bold">2</span>
+            </div>
+            <span>Open the link below in Warpcast</span>
+          </div>
+          <div className="flex items-center gap-3 text-gray-300 text-sm">
+            <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">
+              <span className="text-black text-xs font-bold">3</span>
+            </div>
+            <span>Connect your Base wallet and start</span>
+          </div>
+        </div>
+
+        {/* Open in Farcaster */}
+        <a
+          href={farcasterUrl}
+          className="w-full max-w-xs px-6 py-4 bg-[#B6FF2E] text-black font-bold text-sm uppercase
+                     border-2 border-black text-center block
+                     transition-transform duration-75 hover:-translate-y-0.5 active:translate-y-0"
+        >
+          Open in Farcaster
+        </a>
+
+        {/* Copy URL fallback */}
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            setError('Link copied! Paste it in Warpcast.');
+          }}
+          className="mt-3 text-gray-500 text-xs hover:text-gray-400 underline"
+        >
+          Copy link to clipboard
+        </button>
+
+        {error && (
+          <p className="mt-4 text-sm text-center max-w-xs text-gray-400">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-12 text-center">
+          <p className="text-gray-600 text-xs">
+            Powered by{' '}
+            <a
+              href="https://p402.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#22D3EE] hover:underline"
+            >
+              P402.io
+            </a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Farcaster context: Normal connection flow
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black px-4">
-      {/* Logo */}
       <img src="/icon.png" alt="P402" className="w-20 h-20 mb-8 border-2 border-black rounded-lg" />
 
-      {/* Title */}
       <h1 className="text-white text-2xl font-bold mb-2 text-center">
         P402
       </h1>
@@ -94,34 +178,32 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
         Access 100+ AI models. Pay with USDC. Save up to 70%.
       </p>
 
-      {/* Features */}
       <div className="w-full max-w-xs mb-8 space-y-3">
         <div className="flex items-center gap-3 text-gray-300 text-sm">
           <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">
-            <span className="text-black text-xs">✓</span>
+            <span className="text-black text-xs">&#10003;</span>
           </div>
           <span>GPT-5.2, Claude 4.5, Gemini 3 & more</span>
         </div>
         <div className="flex items-center gap-3 text-gray-300 text-sm">
           <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">
-            <span className="text-black text-xs">✓</span>
+            <span className="text-black text-xs">&#10003;</span>
           </div>
           <span>Smart routing saves you money</span>
         </div>
         <div className="flex items-center gap-3 text-gray-300 text-sm">
           <div className="w-6 h-6 bg-[#B6FF2E] flex items-center justify-center flex-shrink-0">
-            <span className="text-black text-xs">✓</span>
+            <span className="text-black text-xs">&#10003;</span>
           </div>
           <span>Pay per request with USDC</span>
         </div>
       </div>
 
-      {/* Connect Button */}
       <button
         onClick={handleConnect}
         disabled={isConnecting}
         className={`
-          w-full max-w-xs px-6 py-4 
+          w-full max-w-xs px-6 py-4
           bg-[#B6FF2E] text-black font-bold text-sm uppercase
           border-2 border-black
           transition-transform duration-75
@@ -139,17 +221,12 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
         )}
       </button>
 
-      {/* Error/Status Message */}
       {error && (
-        <p
-          className={`mt-4 text-sm text-center max-w-xs ${error.includes('Demo Mode') ? 'text-gray-500' : 'text-red-400'
-            }`}
-        >
+        <p className="mt-4 text-sm text-center max-w-xs text-red-400">
           {error}
         </p>
       )}
 
-      {/* Footer */}
       <div className="mt-12 text-center">
         <p className="text-gray-600 text-xs">
           Powered by{' '}
