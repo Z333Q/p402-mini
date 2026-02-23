@@ -93,7 +93,6 @@ class P402Client {
       body: JSON.stringify({
         wallet_address: walletAddress,
         budget_usd: 0.01, // Minimum budget required by V2 Router
-        source: 'base_miniapp',
       }),
     });
 
@@ -111,19 +110,40 @@ class P402Client {
   }
 
   /**
+   * End a session (DELETE /api/v2/sessions/{id})
+   */
+  async endSession(sessionId: string): Promise<{ id: string; status: string; final_budget: any }> {
+    return this.fetch(`/api/v2/sessions/${sessionId}`, { method: 'DELETE' });
+  }
+
+  /**
+   * Update a session budget/expiry/policy (PATCH /api/v2/sessions/{id})
+   */
+  async patchSession(
+    sessionId: string,
+    updates: { add_budget_usd?: number; extend_hours?: number; policy?: Record<string, unknown> }
+  ): Promise<P402Session> {
+    const response = await this.fetch<any>(`/api/v2/sessions/${sessionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+    return this.normalizeSession(response);
+  }
+
+  /**
    * Get or create session for a wallet address
    * First tries to find an existing active session, creates new if none exists
    */
   async getOrCreateSession(walletAddress: string): Promise<P402Session> {
     try {
-      // V2 returns { object: 'list', data: [...] }
-      const response = await this.fetch<ListResponse<any>>(
-        `/api/v2/sessions?wallet=${encodeURIComponent(walletAddress)}&status=active`
-      );
+      // V2 returns { object: 'list', data: [...] } filtered by status=active for tenant
+      const response = await this.fetch<ListResponse<any>>('/api/v2/sessions?status=active');
 
       const sessions = response.data || [];
-      if (sessions.length > 0) {
-        const session = this.normalizeSession(sessions[0]);
+      // Find a session matching this wallet address (or use first active session)
+      const match = sessions.find((s: any) => s.wallet_address === walletAddress) || sessions[0];
+      if (match) {
+        const session = this.normalizeSession(match);
         this.sessionId = session.id;
         return session;
       }

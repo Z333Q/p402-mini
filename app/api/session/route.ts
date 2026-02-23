@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const P402_API = process.env.P402_API_URL || 'https://p402.io';
+const P402_TENANT_ID = process.env.P402_TENANT_ID;
 
 /**
  * Normalize session response to ensure both id and session_id are present
@@ -28,37 +29,32 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Try to find existing session
-    const findRes = await fetch(
-      `${P402_API}/api/v2/sessions?wallet=${encodeURIComponent(wallet)}&status=active`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-p402-source': 'base-miniapp',
-        },
-      }
-    );
+    const baseHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-p402-source': 'base-miniapp',
+    };
+    if (P402_TENANT_ID) baseHeaders['x-p402-tenant'] = P402_TENANT_ID;
+
+    // Try to find existing session (router filters by tenant, no wallet filter supported)
+    const findRes = await fetch(`${P402_API}/api/v2/sessions?status=active`, { headers: baseHeaders });
 
     if (findRes.ok) {
       const data = await findRes.json();
-      // V2 returns { object: 'list', data: [...] } not { sessions: [...] }
-      const sessions = data.data || data.sessions || [];
-      if (sessions.length > 0) {
-        return NextResponse.json(normalizeSession(sessions[0]));
+      const sessions: any[] = data.data || data.sessions || [];
+      // Prefer a session matching this wallet address
+      const match = sessions.find((s: any) => s.wallet_address === wallet) || sessions[0];
+      if (match) {
+        return NextResponse.json(normalizeSession(match));
       }
     }
 
     // No existing session, create new one
     const createRes = await fetch(`${P402_API}/api/v2/sessions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-p402-source': 'base-miniapp',
-      },
+      headers: baseHeaders,
       body: JSON.stringify({
         wallet_address: wallet,
-        budget_usd: 0.01, // Minimum budget required by V2 Router
-        source: 'base_miniapp',
+        budget_usd: 0.01,
       }),
     });
 
@@ -86,16 +82,16 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-p402-source': 'base-miniapp',
+    };
+    if (P402_TENANT_ID) headers['x-p402-tenant'] = P402_TENANT_ID;
+
     const res = await fetch(`${P402_API}/api/v2/sessions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-p402-source': 'base-miniapp',
-      },
-      body: JSON.stringify({
-        ...body,
-        source: 'base_miniapp',
-      }),
+      headers,
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();

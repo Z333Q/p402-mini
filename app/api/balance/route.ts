@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const P402_API = process.env.P402_API_URL || 'https://p402.io';
+const P402_TENANT_ID = process.env.P402_TENANT_ID;
 
 // GET /api/balance?session_id=sess_xxx - Get session balance
 export async function GET(req: NextRequest) {
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'x-p402-source': 'base-miniapp',
+        ...(P402_TENANT_ID ? { 'x-p402-tenant': P402_TENANT_ID } : {}),
       },
       signal: AbortSignal.timeout(10000),
     });
@@ -45,13 +47,14 @@ export async function GET(req: NextRequest) {
 
     const session = await res.json();
 
-    // Return balance-focused response
+    // Return balance-focused response, normalizing V2 budget shape
+    const balance = session.balance_usdc ?? session.budget?.remaining_usd ?? 0;
     return NextResponse.json({
-      session_id: session.session_id,
-      balance_usdc: session.balance_usdc,
-      budget_total: session.budget_total,
-      budget_spent: session.budget_spent,
-      budget_remaining: session.balance_usdc,
+      session_id: session.id || session.session_id,
+      balance_usdc: balance,
+      budget_total: session.budget_total ?? session.budget?.total_usd ?? 0,
+      budget_spent: session.budget_spent ?? session.budget?.used_usd ?? 0,
+      budget_remaining: balance,
       status: session.status,
     });
   } catch (error) {

@@ -25,25 +25,27 @@ export interface P402Session {
   tenant_id: string;
 
   /** Optional agent identifier */
-  agent_identifier?: string;
+  agent_id?: string;
+  agent_identifier?: string; // Deprecated: use agent_id
 
   /** Wallet address associated with session */
   wallet_address?: string;
 
-  /** Current available balance in USDC */
+  /** Current available balance in USDC (normalized by client) */
   balance_usdc: number;
 
-  /** Total budget ever allocated */
+  /** Total budget ever allocated (normalized by client) */
   budget_total: number;
 
-  /** Total amount spent */
+  /** Total amount spent (normalized by client) */
   budget_spent: number;
 
-  /** Legacy budget object for backward compatibility */
+  /** Budget object returned by backend */
   budget: {
     total_usd: number;
     used_usd: number;
     remaining_usd: number;
+    utilization_percent?: number;
   };
 
   /** Policy configuration */
@@ -56,6 +58,13 @@ export interface P402Session {
   created_at: string;
   expires_at: string;
   ended_at?: string;
+
+  /** Session metadata (returned by GET /api/v2/sessions/{id}) */
+  meta?: {
+    is_active: boolean;
+    is_expired: boolean;
+    time_remaining_seconds: number;
+  };
 }
 
 // ============================================

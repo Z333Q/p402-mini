@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const P402_API = process.env.P402_API_URL || 'https://p402.io';
+const P402_TENANT_ID = process.env.P402_TENANT_ID;
 
 /**
  * Normalize session response to ensure both id and session_id are present
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         'x-p402-source': 'base-miniapp',
         'x-p402-session': session_id,
+        ...(P402_TENANT_ID ? { 'x-p402-tenant': P402_TENANT_ID } : {}),
       },
       body: JSON.stringify({
         session_id,

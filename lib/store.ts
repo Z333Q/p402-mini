@@ -55,6 +55,7 @@ interface P402State {
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
   fundSession: (amount: string, txHash?: string) => Promise<void>;
+  endSession: () => Promise<void>;
   addTransaction: (tx: Transaction) => void;
   setRoutingMode: (mode: 'cost' | 'quality' | 'speed' | 'balanced') => void;
   setUseCache: (useCache: boolean) => void;
@@ -171,6 +172,27 @@ export const useP402Store = create<P402State>()(
           }
         } catch (error) {
           console.error('Failed to fund session:', error);
+          throw error;
+        }
+      },
+
+      endSession: async () => {
+        const { session } = get();
+        if (!session) return;
+
+        try {
+          const sessionId = (session.id || session.session_id) as string;
+          await p402.endSession(sessionId);
+          p402.setSession('');
+          set({
+            session: null,
+            messages: [],
+            isStreaming: false,
+            currentStreamingContent: '',
+            streamingContent: '',
+          });
+        } catch (error) {
+          console.error('Failed to end session:', error);
           throw error;
         }
       },
