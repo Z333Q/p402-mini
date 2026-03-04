@@ -7,7 +7,7 @@ import { base } from 'viem/chains';
 import { useP402Store } from '@/lib/store';
 import type { PaymentParams, PaymentResult, PaymentError, PaymentErrorType } from '@/lib/types';
 
-const TREASURY = '0xb23f146251e3816a011e800bcbae704baa5619ec';
+const TREASURY = '0xFa772434DCe6ED78831EbC9eeAcbDF42E2A031a6';
 const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 
 /** EIP-712 domain for USDC on Base (EIP-3009) */
@@ -150,7 +150,7 @@ export function usePayment() {
       }
 
       const settleResult = await settleResponse.json();
-      const txHash = settleResult.receipt?.txHash;
+      const txHash = settleResult.receipt?.txHash || settleResult.transaction;
 
       // Credit the session budget with the confirmed payment
       await fundSession(amountUSD.toString(), txHash);

@@ -10,6 +10,7 @@ import { Chat } from '@/components/Chat';
 import { ModelSelector } from '@/components/ModelSelector';
 import { FundModal } from '@/components/FundModal';
 import { AuditTool } from '@/components/AuditTool';
+import { AgentsPanel } from '@/components/AgentsPanel';
 import { SettingsModal } from '@/components/SettingsModal';
 import { TransactionHistory } from '@/components/TransactionHistory';
 import { ToastContainer } from '@/components/Toast';
@@ -20,7 +21,7 @@ export default function Home() {
   const [showFundModal, setShowFundModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [activeView, setActiveView] = useState<'chat' | 'audit'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'audit' | 'agents'>('chat');
 
   const isConnected = useIsConnected();
   const loadProviders = useP402Store((s) => s.loadProviders);
@@ -107,14 +108,14 @@ export default function Home() {
         onViewChange={setActiveView}
       />
 
-      {activeView === 'chat' ? (
+      {activeView === 'chat' && (
         <Chat
           onModelClick={() => setShowModelSelector(true)}
           onFundClick={() => setShowFundModal(true)}
         />
-      ) : (
-        <AuditTool />
       )}
+      {activeView === 'audit' && <AuditTool />}
+      {activeView === 'agents' && <AgentsPanel />}
 
       {/* Overlays */}
       <ModelSelector

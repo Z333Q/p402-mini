@@ -369,3 +369,80 @@ export interface ErrorResponse {
     code?: string;
   };
 }
+
+// ============================================
+// A2A / AGENT DISCOVERY TYPES
+// ============================================
+
+export interface RemoteAgent {
+  id: string;
+  name: string;
+  description?: string;
+  capabilities: string[];
+  skills: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    endpoint?: string;
+  }>;
+  trust_score: number;
+  status: 'active' | 'inactive' | 'pending';
+  pricing?: {
+    input_per_1k: number;
+    output_per_1k: number;
+  };
+  stats?: {
+    total_requests: number;
+    success_rate: number;
+    avg_latency_ms: number;
+  };
+}
+
+// ============================================
+// GOVERNANCE TYPES
+// ============================================
+
+export interface Mandate {
+  id: string;
+  type: string;
+  user_did: string;
+  agent_did: string;
+  constraints: {
+    max_amount_usd: number;
+    allowed_actions: string[];
+    expires_at: string;
+  };
+  amount_spent_usd: number;
+  status: 'active' | 'expired' | 'revoked';
+}
+
+// ============================================
+// CACHE STATS TYPES
+// ============================================
+
+export interface CacheStats {
+  totalEntries: number;
+  totalHits: number;
+  avgHitsPerEntry: number;
+  hitRate: number;
+  estimatedSavings: number;
+  namespace?: string;
+}
+
+// ============================================
+// LIVE MODEL CATALOG TYPES
+// ============================================
+
+export interface LiveModel {
+  id: string;
+  name: string;
+  provider: string;
+  description?: string;
+  context_window: number;
+  max_output_tokens?: number;
+  pricing: {
+    input_per_1k: number;
+    output_per_1k: number;
+  };
+  capabilities: string[];
+}

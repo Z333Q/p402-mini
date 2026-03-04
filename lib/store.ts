@@ -328,7 +328,7 @@ export const useP402Store = create<P402State>()(
             cached: metadata?.cached,
             cost: metadata ? {
               total_cost: metadata.cost_usd,
-              input_tokens: metadata.tokens_prompt || 0,
+              input_tokens: 0,
               output_tokens: metadata.tokens_generated || 0,
               direct_cost: metadata.cost_usd * 1.5, // Estimated traditional cost
               savings: (metadata.cost_usd * 1.5) - metadata.cost_usd,

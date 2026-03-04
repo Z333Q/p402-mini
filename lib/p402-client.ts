@@ -16,6 +16,10 @@ import type {
   FundResponse,
   SpendSummary,
   ListResponse,
+  RemoteAgent,
+  Mandate,
+  CacheStats,
+  LiveModel,
 } from './types';
 
 const P402_API_URL = typeof window !== 'undefined'
@@ -285,6 +289,57 @@ class P402Client {
    */
   async getRecommendations(): Promise<{ recommendations: any[] }> {
     return this.fetch<{ recommendations: any[] }>('/api/v2/analytics/recommendations');
+  }
+
+  // ============================================
+  // A2A AGENT DISCOVERY
+  // ============================================
+
+  /**
+   * List registered remote agents
+   */
+  async getAgents(): Promise<ListResponse<RemoteAgent>> {
+    return this.fetch<ListResponse<RemoteAgent>>('/api/a2a/agents');
+  }
+
+  // ============================================
+  // GOVERNANCE
+  // ============================================
+
+  /**
+   * List governance mandates for the current session
+   */
+  async getMandates(): Promise<ListResponse<Mandate>> {
+    return this.fetch<ListResponse<Mandate>>('/api/v2/governance/mandates');
+  }
+
+  // ============================================
+  // LIVE MODEL CATALOG
+  // ============================================
+
+  /**
+   * List all available models from the live catalog
+   */
+  async getModels(): Promise<ListResponse<LiveModel>> {
+    return this.fetch<ListResponse<LiveModel>>('/api/v2/models');
+  }
+
+  // ============================================
+  // CACHE MANAGEMENT
+  // ============================================
+
+  /**
+   * Get semantic cache statistics
+   */
+  async getCacheStats(): Promise<CacheStats> {
+    return this.fetch<CacheStats>('/api/v2/cache/stats');
+  }
+
+  /**
+   * Clear the semantic cache
+   */
+  async clearCache(): Promise<{ cleared: number }> {
+    return this.fetch<{ cleared: number }>('/api/v2/cache/clear', { method: 'DELETE' });
   }
 }
 

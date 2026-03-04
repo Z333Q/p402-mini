@@ -1,0 +1,36 @@
+{
+  "id": "did:web:mini.p402.io",
+  "name": "P402 Mini App Agent",
+  "description": "A Farcaster miniapp for interacting with the P402 Router V2 protocol — pay-per-request AI routing with semantic caching, session management, and multi-provider orchestration.",
+  "version": "2.0.0",
+  "capabilities": [
+    "chat",
+    "streaming",
+    "semantic-cache",
+    "multi-provider",
+    "session-management",
+    "eip-3009-payments"
+  ],
+  "skills": [
+    {
+      "id": "chat",
+      "name": "Chat Completions",
+      "description": "OpenAI-compatible chat completions with intelligent routing across providers",
+      "endpoint": "/api/v2/chat/completions"
+    },
+    {
+      "id": "fund",
+      "name": "Fund Session",
+      "description": "Fund an AI session using USDC on Base via EIP-3009 gasless transfer",
+      "endpoint": "/api/v2/sessions/fund"
+    }
+  ],
+  "endpoint": "https://mini.p402.io",
+  "payment": {
+    "scheme": "eip-3009",
+    "asset": "USDC",
+    "network": "base",
+    "treasury": "0xFa772434DCe6ED78831EbC9eeAcbDF42E2A031a6",
+    "token": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  }
+}

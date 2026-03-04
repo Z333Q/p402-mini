@@ -8,9 +8,9 @@ const ERROR_CONFIG: Record<
 > = {
   insufficient_funds: {
     title: 'Insufficient USDC Balance',
-    description: 'Your wallet does not have enough USDC on Base to complete this payment.',
-    action: 'Get USDC',
-    actionHref: 'https://www.coinbase.com/buy-usdc',
+    description: 'Your wallet does not have enough USDC on Base to complete this payment. Bridge or swap to get USDC on Base.',
+    action: 'Get USDC on Base',
+    actionHref: 'https://www.coinbase.com/bridge',
   },
   signature_rejected: {
     title: 'Payment Cancelled',
@@ -56,7 +56,7 @@ export function PaymentErrorModal({ error, onClose, onRetry }: PaymentErrorModal
       onClick={onClose}
     >
       <div
-        className="bg-white border-4 border-black max-w-md w-full p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+        className="bg-white border-2 border-neutral-900 max-w-sm w-full p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Error icon */}
@@ -70,7 +70,7 @@ export function PaymentErrorModal({ error, onClose, onRetry }: PaymentErrorModal
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 border-2 border-black p-3 font-bold uppercase text-sm
+            className="flex-1 border-2 border-neutral-900 p-3 font-bold uppercase text-sm
                        hover:bg-neutral-100 transition-colors"
           >
             Close
@@ -81,16 +81,18 @@ export function PaymentErrorModal({ error, onClose, onRetry }: PaymentErrorModal
               href={config.actionHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 bg-p402-primary border-2 border-black p-3 font-bold uppercase text-sm
-                         text-center hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+              className="flex-1 bg-p402-primary border-2 border-neutral-900 p-3 font-bold uppercase text-sm
+                         text-center hover:-translate-y-0.5 active:translate-y-0 transition-transform
+                         shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none"
             >
               {config.action}
             </a>
           ) : (
             <button
               onClick={onRetry || error.recoveryAction || onClose}
-              className="flex-1 bg-p402-primary border-2 border-black p-3 font-bold uppercase text-sm
-                         hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+              className="flex-1 bg-p402-primary border-2 border-neutral-900 p-3 font-bold uppercase text-sm
+                         hover:-translate-y-0.5 active:translate-y-0 transition-transform
+                         shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none"
             >
               {config.action}
             </button>
