@@ -41,8 +41,8 @@ export function Header({ onFundClick, onSettingsClick, onHistoryClick, activeVie
         {/* Logo */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
           <img src="/icon.png" alt="P402" className="w-8 h-8 border-2 border-black rounded" />
-          <div className="hidden sm:block">
-            <span className="font-bold text-base text-neutral-900 tracking-tight">P402</span>
+          <div className="flex items-center">
+            <span className="hidden sm:inline font-bold text-base text-neutral-900 tracking-tight">P402</span>
             <span className="text-neutral-500 text-[10px] ml-1.5 font-mono uppercase font-bold">v2</span>
           </div>
         </div>

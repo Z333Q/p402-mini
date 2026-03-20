@@ -24,22 +24,22 @@ test.describe('Chat — empty state', () => {
     await expect(page.locator('h2:has-text("System Ready")')).toBeVisible();
   });
 
-  test('shows AWAITING INPUT when balance > 0', async ({ page }) => {
-    await expect(page.locator('text=AWAITING INPUT...')).toBeVisible();
+  test('shows starter prompts when balance > 0', async ({ page }) => {
+    await expect(page.locator('text=Try a starter prompt')).toBeVisible();
   });
 
   test('chat textarea is enabled and accepting input', async ({ page }) => {
     const textarea = page.locator('textarea');
     await expect(textarea).toBeEnabled();
-    await expect(textarea).toHaveAttribute('placeholder', 'Enter prompt...');
+    await expect(textarea).toHaveAttribute('placeholder', 'Enter your prompt...');
   });
 
   test('status bar shows READY', async ({ page }) => {
-    await expect(page.locator('text=STATUS: READY')).toBeVisible();
+    await expect(page.getByText('○ READY')).toBeVisible();
   });
 
-  test('keyboard hint shows RETURN TO SEND', async ({ page }) => {
-    await expect(page.locator('text=RETURN TO SEND')).toBeVisible();
+  test('keyboard hint shows SHIFT+ENTER for newline', async ({ page }) => {
+    await expect(page.locator('text=SHIFT+↵')).toBeVisible();
   });
 
   test('submit button is disabled when input is empty', async ({ page }) => {
@@ -78,14 +78,14 @@ test.describe('Chat — empty wallet state (balance = 0)', () => {
     await expect(page.locator('text=System Ready')).toBeVisible({ timeout: 15_000 });
   });
 
-  test('shows INITIALIZE WALLET button when balance is 0', async ({ page }) => {
-    await expect(page.locator('button:has-text("INITIALIZE WALLET")')).toBeVisible();
+  test('shows LOAD USDC CREDITS button when balance is 0', async ({ page }) => {
+    await expect(page.locator('button:has-text("LOAD USDC CREDITS")')).toBeVisible();
   });
 
-  test('textarea placeholder says initialize wallet', async ({ page }) => {
+  test('textarea placeholder says load credits when balance is 0', async ({ page }) => {
     await expect(page.locator('textarea')).toHaveAttribute(
       'placeholder',
-      'Initialize wallet to begin...',
+      'Load credits to start...',
     );
   });
 });
@@ -151,14 +151,13 @@ test.describe('Chat — sending messages', () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
-  test('status bar shows BUSY while streaming', async ({ page }) => {
+  test('status bar shows STREAMING then returns to READY', async ({ page }) => {
     const textarea = page.locator('textarea');
     await textarea.fill('Status check');
     await textarea.press('Enter');
 
-    // At some point during streaming, STATUS should flip to BUSY
-    // (may be brief — check that it eventually returns to READY)
-    await expect(page.locator('text=STATUS: READY')).toBeVisible({ timeout: 15_000 });
+    // After streaming completes, status returns to READY
+    await expect(page.locator('text=READY')).toBeVisible({ timeout: 15_000 });
   });
 
   test('chat and audit tabs switch views', async ({ page }) => {
@@ -191,7 +190,7 @@ test.describe('Chat — insufficient balance flow', () => {
     await textarea.press('Enter');
 
     // The UI should recover — status should return to READY
-    await expect(page.locator('text=STATUS: READY')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=READY')).toBeVisible({ timeout: 10_000 });
 
     // App frame still intact
     await expect(page.locator('header')).toBeVisible();

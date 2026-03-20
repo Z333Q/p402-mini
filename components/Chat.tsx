@@ -21,7 +21,7 @@ const STARTER_PROMPTS = [
 export function Chat({ onModelClick, onFundClick }: ChatProps) {
   const messages = useMessages();
   const isStreaming = useIsStreaming();
-  const streamingContent = useP402Store((s) => s.streamingContent);
+  const streamingContent = useP402Store((s) => s.currentStreamingContent);
   const balance = useBalance();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

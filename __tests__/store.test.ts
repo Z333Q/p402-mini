@@ -1,39 +1,51 @@
-import { act, renderHook } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import { useP402Store } from '@/lib/store';
 import { p402 } from '@/lib/p402-client';
+import type { P402Session } from '@/lib/types';
 
 // Mock the P402 Client
 jest.mock('@/lib/p402-client', () => ({
     p402: {
         getOrCreateSession: jest.fn(),
-        getSession: jest.fn(), // Added
+        getSession: jest.fn(),
         setSession: jest.fn(),
         getProviders: jest.fn().mockResolvedValue({ providers: [] }),
         chatStream: jest.fn(),
-        fundSession: jest.fn().mockResolvedValue({ success: true, session: { balance: 15 } }), // Added
+        fundSession: jest.fn(),
+        endSession: jest.fn(),
     },
     formatCost: (n: number) => `$${n}`,
     formatSavings: (n: number) => `50%`,
-    estimateCost: () => 0.01
+    estimateCost: () => 0.01,
 }));
 
-describe('P402 Store', () => {
-    const originalState = useP402Store.getState();
+function makeSession(overrides: Partial<P402Session> = {}): P402Session {
+    return {
+        id: 'sess_test_001',
+        object: 'session',
+        tenant_id: 'tenant_test',
+        wallet_address: '0x123',
+        budget: {
+            total_usd: 10,
+            used_usd: 0,
+            remaining_usd: 10,
+        },
+        status: 'active',
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 86400000).toISOString(),
+        ...overrides,
+    };
+}
 
+describe('P402 Store', () => {
     beforeEach(() => {
-        useP402Store.setState(originalState);
+        useP402Store.getState().disconnect();
         jest.clearAllMocks();
     });
 
     describe('connect', () => {
         it('connects successfully and sets session', async () => {
-            const mockSession = {
-                session_id: 'test-session',
-                wallet_address: '0x123',
-                balance: 10,
-                is_active: true
-            };
-
+            const mockSession = makeSession();
             (p402.getOrCreateSession as jest.Mock).mockResolvedValue(mockSession);
 
             await act(async () => {
@@ -44,71 +56,63 @@ describe('P402 Store', () => {
             expect(state.isConnected).toBe(true);
             expect(state.walletAddress).toBe('0x123');
             expect(state.userProfile?.username).toBe('testuser');
-            expect(state.session).toEqual(mockSession);
-            expect(p402.setSession).toHaveBeenCalledWith('test-session');
+            expect(state.session?.id).toBe('sess_test_001');
+            expect(state.session?.budget.remaining_usd).toBe(10);
         });
     });
 
     describe('sendMessage', () => {
         it('adds user message and processes AI response', async () => {
-            // Setup connected state
             useP402Store.setState({
                 isConnected: true,
-                session: { balance: 10 } as any
+                session: makeSession(),
             });
 
-            const mockStream = {
-                getReader: () => ({
-                    read: jest.fn()
-                        .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('Hello') })
-                        .mockResolvedValueOnce({ done: true })
-                })
+            const mockReader = {
+                read: jest.fn()
+                    .mockResolvedValueOnce({
+                        done: false,
+                        value: new TextEncoder().encode(
+                            'data: {"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}\n\n'
+                        ),
+                    })
+                    .mockResolvedValueOnce({ done: true, value: undefined }),
+                releaseLock: jest.fn(),
             };
 
-            (p402.chatStream as jest.Mock).mockResolvedValue(mockStream);
+            (p402.chatStream as jest.Mock).mockResolvedValue({
+                ok: true,
+                body: { getReader: () => mockReader },
+            });
+            (p402.getSession as jest.Mock).mockResolvedValue(makeSession());
 
             await act(async () => {
                 await useP402Store.getState().sendMessage('Hi AI');
             });
 
             const state = useP402Store.getState();
-
-            // Verify user message added
-            expect(state.messages[0]).toMatchObject({
-                role: 'user',
-                content: 'Hi AI'
-            });
-
-            // Verify AI message placeholder added (optimistic)
-            expect(state.messages[1]).toMatchObject({
-                role: 'assistant',
-                content: ''
-            });
-
-            // Verify streaming flag was set (it resets after completion, so this is tricky to assert post-await without more granular hooks)
+            expect(state.messages[0]).toMatchObject({ role: 'user', content: 'Hi AI' });
             expect(p402.chatStream).toHaveBeenCalled();
         });
     });
 
     describe('fundSession', () => {
-        it('updates balance correctly', async () => {
-            useP402Store.setState({
-                session: { balance: 5, session_id: 'sess_1' } as any
-            });
+        it('updates session with funded balance', async () => {
+            const fundedSession = makeSession({ budget: { total_usd: 15, used_usd: 0, remaining_usd: 15 } });
+            useP402Store.setState({ session: makeSession({ budget: { total_usd: 5, used_usd: 0, remaining_usd: 5 } }) });
 
-            // Mock the API call (which happens in the store action) needs to be mocked on p402 client if it was used directly.
-            // However currently store.ts uses p402.fundSession but implementation just calls fetch properly in p402-client mock.
-            // Wait, in store.ts `fundSession` calls `p402.fundSession`? Let's check store.ts content.
-            // Based on previous reads, store.ts `fundSession` updates local state optimistically or re-fetches.
-            // Assuming store.ts updates state:
+            (p402.fundSession as jest.Mock).mockResolvedValue({
+                success: true,
+                session: fundedSession,
+                amount_credited: 10,
+                tx_hash: 'tx_123',
+            });
 
             await act(async () => {
                 await useP402Store.getState().fundSession('10', 'tx_123');
             });
 
-            const state = useP402Store.getState();
-            // 5 + 10 = 15
-            expect(state.session?.balance).toBe(15);
+            expect(useP402Store.getState().session?.budget.remaining_usd).toBe(15);
         });
     });
 });

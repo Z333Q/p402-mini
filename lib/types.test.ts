@@ -1,6 +1,6 @@
 /**
  * P402 Types Validation Tests
- * Ensures type interfaces match expected structures
+ * Ensures type interfaces match P402 Router V2 API structures.
  */
 
 import type {
@@ -8,60 +8,63 @@ import type {
     P402Provider,
     P402Model,
     ChatMessage,
-    MessageCost,
     ChatRequest,
     ChatResponse,
     FundRequest,
     FundResponse,
-    SpendSummary,
 } from './types';
 
-import { DEFAULT_MODEL, MODEL_TIERS } from './types';
+import { MODEL_TIERS } from './types';
 
 describe('P402 Types', () => {
     describe('P402Session', () => {
-        it('should accept valid session object', () => {
+        it('should accept valid V2 session object', () => {
             const session: P402Session = {
-                session_id: 'sess_123',
+                id: 'sess_abc123',
+                object: 'session',
+                tenant_id: 'tenant_xyz',
                 wallet_address: '0x1234567890abcdef',
-                balance_usdc: 100.00,
-                budget_total: 100.00,
-                budget_spent: 0,
+                budget: {
+                    total_usd: 100.00,
+                    used_usd: 5.50,
+                    remaining_usd: 94.50,
+                    utilization_percent: 5.5,
+                },
                 status: 'active',
                 created_at: '2026-01-13T00:00:00Z',
                 expires_at: '2026-01-20T00:00:00Z',
             };
 
-            expect(session.session_id).toBeDefined();
+            expect(session.id).toBe('sess_abc123');
             expect(session.status).toBe('active');
+            expect(session.budget.remaining_usd).toBe(94.50);
         });
 
         it('should support all status types', () => {
-            const statuses: P402Session['status'][] = ['active', 'paused', 'exhausted'];
-            expect(statuses).toHaveLength(3);
+            const statuses: P402Session['status'][] = ['active', 'exhausted', 'expired', 'ended', 'revoked'];
+            expect(statuses).toHaveLength(5);
         });
     });
 
     describe('P402Model', () => {
         it('should accept valid model object', () => {
             const model: P402Model = {
-                id: 'openai/gpt-5.2-turbo',
-                name: 'GPT-5.2 Turbo',
-                provider: 'openai',
-                tier: 'flagship',
-                context_window: 128000,
-                input_cost_per_1k: 0.01,
-                output_cost_per_1k: 0.03,
-                capabilities: ['text', 'vision', 'function_calling'],
+                id: 'claude-sonnet-4-6',
+                name: 'Claude Sonnet 4.6',
+                tier: 'premium',
+                context_window: 200000,
+                input_cost_per_1k: 0.003,
+                output_cost_per_1k: 0.015,
+                capabilities: ['text', 'vision', 'code'],
             };
 
-            expect(model.tier).toBe('flagship');
+            expect(model.tier).toBe('premium');
             expect(model.capabilities).toContain('text');
         });
 
-        it('should support all tier types', () => {
-            const tiers: P402Model['tier'][] = ['flagship', 'balanced', 'efficient', 'budget'];
-            expect(tiers).toHaveLength(4);
+        it('should support all 3 tier types', () => {
+            const tiers: P402Model['tier'][] = ['premium', 'mid', 'budget'];
+            expect(tiers).toHaveLength(3);
         });
     });
 
@@ -71,8 +74,7 @@ describe('P402 Types', () => {
                 id: 'msg_123',
                 role: 'assistant',
                 content: 'Hello, how can I help you?',
-                model: 'gpt-5.2-turbo',
-                provider: 'openai',
+                model: 'claude-sonnet-4-6',
                 cost: {
                     input_tokens: 10,
                     output_tokens: 20,
@@ -83,23 +85,24 @@ describe('P402 Types', () => {
                 },
                 latency_ms: 150,
                 cached: false,
-                timestamp: Date.now(),
             };
 
             expect(message.latency_ms).toBe(150);
             expect(message.cached).toBe(false);
+            expect(message.cost?.savings_percent).toBe(33.3);
         });
     });
 
     describe('ChatRequest', () => {
         it('should include p402 configuration', () => {
             const request: ChatRequest = {
-                model: 'gpt-5.2-turbo',
+                model: 'claude-sonnet-4-6',
                 messages: [{ role: 'user', content: 'Hello' }],
                 stream: true,
                 p402: {
                     mode: 'balanced',
                     cache: true,
+                    failover: true,
                 },
             };
 
@@ -108,60 +111,23 @@ describe('P402 Types', () => {
         });
     });
 
-    describe('ChatResponse', () => {
-        it('should include p402_metadata', () => {
-            const response: ChatResponse = {
-                id: 'resp_123',
-                model: 'gpt-5.2-turbo',
-                provider: 'openai',
-                choices: [
-                    {
-                        index: 0,
-                        message: { role: 'assistant', content: 'Hello!' },
-                        finish_reason: 'stop',
-                    },
-                ],
-                usage: {
-                    prompt_tokens: 10,
-                    completion_tokens: 5,
-                    total_tokens: 15,
-                },
-                cost: {
-                    input_tokens: 10,
-                    output_tokens: 5,
-                    total_cost: 0.0005,
-                    direct_cost: 0.0008,
-                    savings: 0.0003,
-                    savings_percent: 37.5,
-                },
-                p402_metadata: {
-                    provider: 'openai',
-                    cost_usd: 0.0005,
-                    cached: true,
-                    latency_ms: 85,
-                },
-            };
-
-            expect(response.p402_metadata?.cached).toBe(true);
-            expect(response.p402_metadata?.latency_ms).toBe(85);
-        });
-    });
-
-    describe('Constants', () => {
-        it('should have correct default model', () => {
-            expect(DEFAULT_MODEL).toBe('gpt-5.2-turbo');
-        });
-
-        it('should have all model tiers defined', () => {
-            expect(MODEL_TIERS.flagship).toBeDefined();
-            expect(MODEL_TIERS.balanced).toBeDefined();
-            expect(MODEL_TIERS.efficient).toBeDefined();
+    describe('MODEL_TIERS', () => {
+        it('should have 3-tier system: premium, mid, budget', () => {
+            expect(MODEL_TIERS.premium).toBeDefined();
+            expect(MODEL_TIERS.mid).toBeDefined();
             expect(MODEL_TIERS.budget).toBeDefined();
         });
 
         it('should have correct tier colors', () => {
-            expect(MODEL_TIERS.flagship.color).toBe('#B6FF2E');
-            expect(MODEL_TIERS.balanced.color).toBe('#22D3EE');
+            expect(MODEL_TIERS.premium.color).toBe('#B6FF2E');
+            expect(MODEL_TIERS.mid.color).toBe('#22D3EE');
+            expect(MODEL_TIERS.budget.color).toBe('#7A7A7A');
+        });
+
+        it('should have correct tier labels', () => {
+            expect(MODEL_TIERS.premium.label).toBe('Premium');
+            expect(MODEL_TIERS.mid.label).toBe('Mid');
+            expect(MODEL_TIERS.budget.label).toBe('Budget');
         });
     });
 });

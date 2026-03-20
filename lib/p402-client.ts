@@ -68,22 +68,6 @@ class P402Client {
     return response.json();
   }
 
-  /**
-   * Normalize session response to ensure both id and session_id are present
-   */
-  private normalizeSession(session: any): P402Session {
-    return {
-      ...session,
-      // Ensure both id and session_id are available
-      id: session.id || session.session_id,
-      session_id: session.session_id || session.id,
-      // Ensure balance_usdc is available
-      balance_usdc: session.balance_usdc ?? session.budget?.remaining_usd ?? 0,
-      budget_total: session.budget_total ?? session.budget?.total_usd ?? 0,
-      budget_spent: session.budget_spent ?? session.budget?.used_usd ?? 0,
-    };
-  }
-
   // ============================================
   // SESSION MANAGEMENT
   // ============================================
@@ -100,17 +84,15 @@ class P402Client {
       }),
     });
 
-    const session = this.normalizeSession(response);
-    this.sessionId = session.id;
-    return session;
+    this.sessionId = response.id;
+    return response as P402Session;
   }
 
   /**
    * Get session by ID
    */
   async getSession(sessionId: string): Promise<P402Session> {
-    const response = await this.fetch<any>(`/api/v2/sessions/${sessionId}`);
-    return this.normalizeSession(response);
+    return this.fetch<P402Session>(`/api/v2/sessions/${sessionId}`);
   }
 
   /**
@@ -127,11 +109,10 @@ class P402Client {
     sessionId: string,
     updates: { add_budget_usd?: number; extend_hours?: number; policy?: Record<string, unknown> }
   ): Promise<P402Session> {
-    const response = await this.fetch<any>(`/api/v2/sessions/${sessionId}`, {
+    return this.fetch<P402Session>(`/api/v2/sessions/${sessionId}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
-    return this.normalizeSession(response);
   }
 
   /**
@@ -145,11 +126,10 @@ class P402Client {
 
       const sessions = response.data || [];
       // Find a session matching this wallet address (or use first active session)
-      const match = sessions.find((s: any) => s.wallet_address === walletAddress) || sessions[0];
+      const match = sessions.find((s: P402Session) => s.wallet_address === walletAddress) || sessions[0];
       if (match) {
-        const session = this.normalizeSession(match);
-        this.sessionId = session.id;
-        return session;
+        this.sessionId = match.id;
+        return match as P402Session;
       }
     } catch (e) {
       // No existing session found, will create new one
@@ -171,11 +151,6 @@ class P402Client {
       method: 'POST',
       body: JSON.stringify(request),
     });
-
-    // Normalize the session in the response
-    if (response.session) {
-      response.session = this.normalizeSession(response.session);
-    }
 
     return response;
   }

@@ -22,7 +22,7 @@ test.describe('Connect — browser fallback (no Farcaster)', () => {
 
   test('Warpcast deep link is correctly formed', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Open in Farcaster')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h1:has-text("Open in Farcaster")')).toBeVisible({ timeout: 10_000 });
 
     const link = page.locator('a[href*="warpcast.com"]');
     await expect(link).toBeVisible();
@@ -36,7 +36,7 @@ test.describe('Connect — browser fallback (no Farcaster)', () => {
     // Grant clipboard permission
     await context.grantPermissions(['clipboard-write']);
     await page.goto('/');
-    await expect(page.locator('text=Open in Farcaster')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h1:has-text("Open in Farcaster")')).toBeVisible({ timeout: 10_000 });
 
     await page.locator('button:has-text("Copy link")').click();
 
@@ -46,7 +46,7 @@ test.describe('Connect — browser fallback (no Farcaster)', () => {
 
   test('P402.io powered-by link is present', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Open in Farcaster')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h1:has-text("Open in Farcaster")')).toBeVisible({ timeout: 10_000 });
 
     const link = page.locator('a[href="https://p402.io"]');
     await expect(link).toBeVisible();
@@ -62,9 +62,8 @@ test.describe('Connect — auto-reconnect from persisted wallet', () => {
     await mockP402Api(page);
     await page.goto('/');
 
-    // Should skip ConnectScreen and reach the header
-    await expect(page.locator('text=P402').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('text=SDK // v2')).toBeVisible();
+    // Should skip ConnectScreen and reach the header (v2 badge always visible)
+    await expect(page.locator('text=v2')).toBeVisible({ timeout: 15_000 });
   });
 
   test('balance is displayed after reconnect', async ({ page }) => {
@@ -113,21 +112,24 @@ test.describe('Connect — auto-reconnect from persisted wallet', () => {
   });
 
   test('clearing localStorage shows Farcaster gate on next load', async ({ page }) => {
-    // First load with wallet persisted
-    await page.addInitScript((store) => {
+    // Use page.evaluate (not addInitScript) so the state is NOT re-seeded on reload
+    await mockP402Api(page);
+    await page.goto('/');
+
+    // Inject wallet state after initial navigation so addInitScript doesn't re-run on reload
+    await page.evaluate((store) => {
       localStorage.setItem('p402-miniapp-storage', store);
     }, buildPersistedStore());
 
-    await mockP402Api(page);
-    await page.goto('/');
+    await page.reload();
     await expect(page.locator('text=System Ready')).toBeVisible({ timeout: 15_000 });
 
-    // Clear storage and reload
+    // Clear storage and reload — no init script to re-seed it
     await page.evaluate(() => localStorage.removeItem('p402-miniapp-storage'));
     await page.reload();
 
     // Now no wallet — should show Farcaster gate
-    await expect(page.locator('text=Open in Farcaster')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h1:has-text("Open in Farcaster")')).toBeVisible({ timeout: 10_000 });
   });
 });
 

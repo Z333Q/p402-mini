@@ -31,15 +31,6 @@ export interface P402Session {
   /** Wallet address associated with session */
   wallet_address?: string;
 
-  /** Current available balance in USDC (normalized by client) */
-  balance_usdc: number;
-
-  /** Total budget ever allocated (normalized by client) */
-  budget_total: number;
-
-  /** Total amount spent (normalized by client) */
-  budget_spent: number;
-
   /** Budget object returned by backend */
   budget: {
     total_usd: number;
@@ -81,10 +72,9 @@ export interface P402Provider {
 }
 
 export const MODEL_TIERS: Record<string, { label: string; color: string }> = {
-  flagship: { label: 'Flagship', color: '#B6FF2E' },
-  balanced: { label: 'Balanced', color: '#00F0FF' },
-  efficient: { label: 'Efficient', color: '#FF00F5' },
-  budget: { label: 'Budget', color: '#888888' },
+  premium: { label: 'Premium', color: '#B6FF2E' },
+  mid: { label: 'Mid', color: '#22D3EE' },
+  budget: { label: 'Budget', color: '#7A7A7A' },
 };
 
 export interface P402Model {
@@ -96,7 +86,7 @@ export interface P402Model {
   input_cost_per_1k: number;
   output_cost_per_1k: number;
   capabilities: string[];
-  tier: 'flagship' | 'balanced' | 'efficient' | 'budget';
+  tier: 'premium' | 'mid' | 'budget';
 }
 
 // ============================================
@@ -121,6 +111,7 @@ export interface ChatMessage {
     output_tokens: number;
     direct_cost: number;
     savings: number;
+    savings_percent?: number;
   };
 }
 
@@ -174,6 +165,11 @@ export interface P402Metadata {
   provider_latency_ms?: number;
   ttfb_ms?: number;
   tokens_generated?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  direct_cost?: number;
+  savings?: number;
+  savings_percent?: number;
   cached: boolean;
   routing_mode?: 'cost' | 'quality' | 'speed' | 'balanced';
 }

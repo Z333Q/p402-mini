@@ -29,7 +29,6 @@ interface P402State {
   messages: ChatMessage[];
   isStreaming: boolean;
   currentStreamingContent: string;
-  streamingContent: string; // Alias for backward compatibility
 
   // Provider state
   providers: P402Provider[];
@@ -77,7 +76,6 @@ export const useP402Store = create<P402State>()(
       messages: [],
       isStreaming: false,
       currentStreamingContent: '',
-      streamingContent: '',
       providers: [],
       selectedModel: null,
       routingMode: 'balanced',
@@ -99,12 +97,7 @@ export const useP402Store = create<P402State>()(
             isConnected: true,
             walletAddress,
             userProfile: userProfile || null,
-            // Normalize session to ensure both id and session_id are available
-            session: {
-              ...session,
-              id: session.id || session.session_id,
-              session_id: session.session_id || session.id,
-            } as P402Session,
+            session,
           });
         } catch (error) {
           console.error('Failed to connect:', error);
@@ -134,15 +127,8 @@ export const useP402Store = create<P402State>()(
         if (!session) return;
 
         try {
-          const sessionId = (session.id || session.session_id) as string;
-          const updated = await p402.getSession(sessionId);
-          set({
-            session: {
-              ...updated,
-              id: updated.id || updated.session_id,
-              session_id: updated.session_id || updated.id,
-            } as P402Session,
-          });
+          const updated = await p402.getSession(session.id);
+          set({ session: updated });
         } catch (error) {
           console.error('Failed to refresh session:', error);
         }
@@ -153,22 +139,15 @@ export const useP402Store = create<P402State>()(
         if (!session) throw new Error('No active session');
 
         try {
-          const sessionId = session.id || session.session_id;
           const result = await p402.fundSession({
-            session_id: sessionId as string,
+            session_id: session.id,
             amount,
             tx_hash: txHash,
             source: 'base_pay',
           });
 
           if (result.success && result.session) {
-            set({
-              session: {
-                ...result.session,
-                id: result.session.id || result.session.session_id,
-                session_id: result.session.session_id || result.session.id,
-              } as P402Session,
-            });
+            set({ session: result.session });
           }
         } catch (error) {
           console.error('Failed to fund session:', error);
@@ -181,15 +160,13 @@ export const useP402Store = create<P402State>()(
         if (!session) return;
 
         try {
-          const sessionId = (session.id || session.session_id) as string;
-          await p402.endSession(sessionId);
+          await p402.endSession(session.id);
           p402.setSession('');
           set({
             session: null,
             messages: [],
             isStreaming: false,
             currentStreamingContent: '',
-            streamingContent: '',
           });
         } catch (error) {
           console.error('Failed to end session:', error);
@@ -258,8 +235,7 @@ export const useP402Store = create<P402State>()(
         });
 
         try {
-          const sessionId = (session.id || session.session_id) as string;
-          p402.setSession(sessionId);
+          p402.setSession(session.id);
 
           const response = await p402.chatStream({
             model: selectedModel?.id,
@@ -268,7 +244,8 @@ export const useP402Store = create<P402State>()(
             p402: {
               mode: routingMode,
               cache: useCache,
-              session_id: sessionId as string,
+              session_id: session.id,
+              failover: true,
             },
           });
 
@@ -301,10 +278,7 @@ export const useP402Store = create<P402State>()(
                   const deltaContent = parsed.choices?.[0]?.delta?.content;
                   if (deltaContent) {
                     fullContent += deltaContent;
-                    set({
-                      currentStreamingContent: fullContent,
-                      streamingContent: fullContent // Update alias
-                    });
+                    set({ currentStreamingContent: fullContent });
                   }
 
                   // Check for final metadata
@@ -328,38 +302,33 @@ export const useP402Store = create<P402State>()(
             cached: metadata?.cached,
             cost: metadata ? {
               total_cost: metadata.cost_usd,
-              input_tokens: 0,
-              output_tokens: metadata.tokens_generated || 0,
-              direct_cost: metadata.cost_usd * 1.5, // Estimated traditional cost
-              savings: (metadata.cost_usd * 1.5) - metadata.cost_usd,
+              input_tokens: metadata.input_tokens || 0,
+              output_tokens: metadata.output_tokens || metadata.tokens_generated || 0,
+              direct_cost: metadata.direct_cost || metadata.cost_usd,
+              savings: metadata.savings || 0,
             } : undefined
           };
 
           // Update analytics if we got metadata
           if (metadata) {
-            const currentSpent = get().totalSpent;
-            const currentRequests = get().requestCount;
-            set({
-              totalSpent: currentSpent + (metadata.cost_usd || 0),
-              requestCount: currentRequests + 1,
-            });
+            set((state) => ({
+              totalSpent: state.totalSpent + (metadata.cost_usd || 0),
+              totalSaved: state.totalSaved + (metadata.savings || 0),
+              requestCount: state.requestCount + 1,
+            }));
           }
 
           set((state) => ({
             messages: [...state.messages, assistantMessage],
             isStreaming: false,
             currentStreamingContent: '',
-            streamingContent: '',
           }));
 
           // Refresh session to get updated balance
           get().refreshSession();
         } catch (error) {
           console.error('Chat error:', error);
-          set({
-            isStreaming: false,
-            currentStreamingContent: '',
-          });
+          set({ isStreaming: false, currentStreamingContent: '' });
           throw error;
         }
       },
@@ -410,11 +379,11 @@ export const useStore = useP402Store;
 
 export const useSession = () => useP402Store((state) => state.session);
 export const useBalance = () =>
-  useP402Store((state) => state.session?.balance_usdc ?? state.session?.budget?.remaining_usd ?? 0);
+  useP402Store((state) => state.session?.budget?.remaining_usd ?? 0);
 export const useIsConnected = () => useP402Store((state) => state.isConnected);
 export const useMessages = () => useP402Store((state) => state.messages);
 export const useIsStreaming = () => useP402Store((state) => state.isStreaming);
-export const useStreamingContent = () => useP402Store((state) => state.currentStreamingContent || state.streamingContent);
+export const useStreamingContent = () => useP402Store((state) => state.currentStreamingContent);
 export const useSelectedModel = () => useP402Store((state) => {
   const model = state.selectedModel;
   if (!model) return '';

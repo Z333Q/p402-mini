@@ -140,7 +140,7 @@ export function ModelSelector({ isOpen, onClose }: ModelSelectorProps) {
         {/* Tier Filter (providers only) */}
         {source === 'providers' && (
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {['all', 'flagship', 'balanced', 'efficient', 'budget'].map((tier) => (
+            {['all', 'premium', 'mid', 'budget'].map((tier) => (
               <button
                 key={tier}
                 onClick={() => setFilter(tier)}

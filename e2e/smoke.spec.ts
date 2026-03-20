@@ -15,7 +15,7 @@ test.describe('Smoke — unauthenticated @smoke', () => {
     const hasLoader = page.locator('text=Loading...').or(
       page.locator('.animate-pulse'),
     );
-    const hasFarcasterGate = page.locator('text=Open in Farcaster');
+    const hasFarcasterGate = page.locator('h1:has-text("Open in Farcaster")');
 
     // Wait for one of them to appear
     await expect(hasLoader.or(hasFarcasterGate).first()).toBeVisible({ timeout: 10_000 });
@@ -25,13 +25,13 @@ test.describe('Smoke — unauthenticated @smoke', () => {
     await page.goto('/');
 
     // The app detects it's not inside Farcaster and shows the fallback
-    await expect(page.locator('text=Open in Farcaster')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h1:has-text("Open in Farcaster")')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=P402 Mini requires Farcaster')).toBeVisible();
   });
 
   test('browser fallback contains Open in Farcaster link @smoke', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Open in Farcaster')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h1:has-text("Open in Farcaster")')).toBeVisible({ timeout: 10_000 });
 
     // The href link should point to Warpcast
     const link = page.locator('a[href*="warpcast.com"]');
@@ -43,7 +43,7 @@ test.describe('Smoke — unauthenticated @smoke', () => {
 
   test('browser fallback has copy link button @smoke', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Open in Farcaster')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h1:has-text("Open in Farcaster")')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('button:has-text("Copy link")')).toBeVisible();
   });
 
@@ -67,17 +67,17 @@ test.describe('Smoke — authenticated @smoke', () => {
   });
 
   test('main app renders after auto-reconnect @smoke', async ({ page }) => {
-    // The header with P402 branding should be visible
+    // The header with P402 branding should be visible (check v2 badge, always shown)
     await expect(page.locator('header')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('text=P402').first()).toBeVisible();
+    await expect(page.locator('text=v2')).toBeVisible();
   });
 
   test('header shows SDK version badge @smoke', async ({ page }) => {
-    await expect(page.locator('text=SDK // v2')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('text=v2')).toBeVisible({ timeout: 15_000 });
   });
 
   test('balance button is visible in header @smoke', async ({ page }) => {
-    await expect(page.locator('text=Balance')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('button:has-text("BAL")')).toBeVisible({ timeout: 15_000 });
   });
 
   test('chat and audit tabs are visible @smoke', async ({ page }) => {
@@ -94,7 +94,7 @@ test.describe('Smoke — authenticated @smoke', () => {
   });
 
   test('status bar shows READY @smoke', async ({ page }) => {
-    await expect(page.locator('text=STATUS: READY')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('○ READY')).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -104,7 +104,7 @@ test.describe('Smoke — well-known and API routes @smoke', () => {
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body).toHaveProperty('accountAssociation');
-    expect(body).toHaveProperty('frame');
+    expect(body).toHaveProperty('miniapp');
   });
 
   test('health check endpoint is reachable @smoke', async ({ page }) => {

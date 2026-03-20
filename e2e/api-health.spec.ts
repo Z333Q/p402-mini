@@ -41,11 +41,11 @@ test.describe('API — /.well-known/farcaster.json', () => {
 
   test('manifest frame config has required fields', async ({ request }) => {
     const body = await (await request.get('/.well-known/farcaster.json')).json();
-    expect(body).toHaveProperty('frame');
-    expect(body.frame).toHaveProperty('version');
-    expect(body.frame).toHaveProperty('name');
-    expect(body.frame).toHaveProperty('iconUrl');
-    expect(body.frame).toHaveProperty('homeUrl');
+    expect(body).toHaveProperty('miniapp');
+    expect(body.miniapp).toHaveProperty('version');
+    expect(body.miniapp).toHaveProperty('name');
+    expect(body.miniapp).toHaveProperty('iconUrl');
+    expect(body.miniapp).toHaveProperty('homeUrl');
   });
 });
 

@@ -126,8 +126,8 @@ export function FundModal({ isOpen, onClose }: FundModalProps) {
               {/* Current Balance */}
               <div className="flex items-center justify-between bg-neutral-50 border-2 border-neutral-200 px-4 py-3">
                 <span className="text-xs font-black uppercase text-neutral-500 tracking-wider">Balance</span>
-                <span className={`font-mono font-bold text-lg ${(session?.balance_usdc ?? 0) < 1 ? 'text-p402-warning' : 'text-neutral-900'}`}>
-                  ${(session?.balance_usdc ?? 0).toFixed(2)}
+                <span className={`font-mono font-bold text-lg ${(session?.budget?.remaining_usd ?? 0) < 1 ? 'text-p402-warning' : 'text-neutral-900'}`}>
+                  ${(session?.budget?.remaining_usd ?? 0).toFixed(2)}
                 </span>
               </div>
 
